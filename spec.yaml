@@ -1,0 +1,308 @@
+id: mt_patrols
+
+requirements:
+  - name: ecoscope-workflows-core
+    version: ">=0.22.12, <0.23.0"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+  - name: ecoscope-workflows-ext-ecoscope
+    version: ">=0.22.12, <0.23.0"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+  - name: ecoscope-workflows-ext-custom
+    version: ">=0.0.28, <0.1.0"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+rjsf-overrides:
+  properties:
+    Generate Maps.properties.set_skip_map.properties.var.description: >-
+      Skip generating maps for patrol trajectories. Recommended for large datasets to improve performance.
+    Generate Maps.properties.set_skip_map.properties.var.default: false
+    Generate Maps.properties.base_map_defs.properties.base_maps.title: "Map Base Layers"
+    persist_patrol_traj.properties.filename_prefix.default: "patrol_trajectories"
+    persist_patrol_traj.properties.filetypes.default: ["geoparquet"]
+    Process Patrol Observations.properties.groupers.properties.groupers.items.anyOf:
+      - {"$ref": "#/$defs/ValueGrouper"}
+      - {"$ref": "#/$defs/TemporalGrouper"}
+    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.title: "Category"
+    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.default: "patrol_id"
+    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.description: >-
+      Select the patrol observation attribute to use for categorizing and coloring patrol trajectories on the generated maps.
+
+  $defs:
+    ValueGrouper.oneOf: []
+
+  uiSchema:
+    Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
+    Generate Maps.base_map_defs.base_maps.items.ui:options.label: false
+
+task-instance-defaults:
+  skipif:
+    conditions:
+      - any_is_empty_df
+      - any_dependency_skipped
+
+workflow:
+  - name: Workflow Details
+    id: workflow_details
+    task: set_workflow_details
+
+  - name: Data Source
+    id: smart_client_name
+    task: set_smart_connection
+
+  - name: Time Range
+    id: time_range
+    task: set_time_range
+    partial:
+      time_format: '%d %b %Y %H:%M:%S %Z'
+
+  - name: Get Patrol Observations
+    id: patrol_obs
+    task: get_patrol_observations_from_smart
+    partial:
+      client: ${{ workflow.smart_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+
+  - name: Extract Timezone Selection
+    id: get_timezone
+    task: get_timezone_from_time_range
+    partial:
+      time_range: ${{ workflow.time_range.return }}
+
+  - name: Convert Patrol Observations to Timezone
+    id: convert_patrols_to_user_timezone
+    task: convert_values_to_timezone
+    partial:
+      df: ${{ workflow.patrol_obs.return }}
+      timezone: ${{ workflow.get_timezone.return }}
+      columns: ["fixtime"]
+
+  - title: Process Patrol Observations
+    type: task-group
+    description: >-
+      Process patrol observations by applying filters, column transformations, and SQL queries.
+    tasks:
+      - name: Remove Column Prefix Extra
+        id: drop_extra_prefix_obs
+        task: drop_column_prefix
+        partial:
+          df: ${{ workflow.convert_patrols_to_user_timezone.return }}
+          prefix: "extra__"
+          duplicate_strategy: "suffix"
+
+      - name: Filter Observation Relocations
+        id: filter_patrol_obs
+        task: apply_reloc_coord_filter
+        partial:
+          df: ${{ workflow.drop_extra_prefix_obs.return }}
+          roi_gdf: null
+          roi_name: null
+          reset_index: false
+          bounding_box:
+            min_x: -180.0
+            max_x: 180.0
+            min_y: -90.0
+            max_y: 90.0
+          filter_point_coords:
+            - {x: 180.0, y: 90.0}
+            - {x: 0.0, y: 0.0}
+            - {x: 1.0, y: 1.0}
+
+      - name: Trajectory Segment Filter
+        id: patrol_traj
+        task: relocations_to_trajectory
+        partial:
+          relocations: ${{ workflow.filter_patrol_obs.return }}
+
+      - name: Remove Column Prefix Extra
+        id: drop_extra_prefix_traj
+        task: drop_column_prefix
+        partial:
+          df: ${{ workflow.patrol_traj.return }}
+          prefix: "extra__"
+          duplicate_strategy: "suffix"
+
+      - name: Internally Process Columns
+        id: customize_columns_internally
+        task: map_columns
+        partial:
+          df: ${{ workflow.drop_extra_prefix_traj.return }}
+          rename_columns: {}
+          drop_columns: ["id"]
+          retain_columns: []
+          raise_if_not_found: false
+
+      - name: Process Columns
+        id: customize_columns_traj
+        task: map_columns
+        partial:
+          df: ${{ workflow.customize_columns_internally.return }}
+          rename_columns: {}
+          retain_columns: []
+          raise_if_not_found: false
+
+      - name: Apply SQL Query
+        id: sql_query_traj
+        task: apply_sql_query
+        partial:
+          df: ${{ workflow.customize_columns_traj.return }}
+
+      - name: Group Data
+        id: groupers
+        task: set_groupers
+
+      - name: Style Trajectory By Category
+        id: set_patrol_traj_color_column
+        task: set_string_var
+
+      - name: Add temporal index to Patrol Trajectories
+        id: traj_add_temporal_index
+        task: add_temporal_index
+        partial:
+          df: ${{ workflow.sql_query_traj.return }}
+          time_col: "segment_start"
+          groupers: ${{ workflow.groupers.return }}
+          cast_to_datetime: true
+          format: "mixed"
+
+      - name: Patrol Traj Colormap
+        id: traj_colormap
+        task: apply_color_map
+        partial:
+          df: ${{ workflow.traj_add_temporal_index.return }}
+          colormap: ["#FF9600", "#F23B0E", "#A100CB", "#F04564", "#03421A", "#3089FF", "#E26FFF", "#8C1700", "#002960", "#FFD000", "#B62879", "#680078", "#005A56", "#0056C7", "#331878", "#E76826"]
+          input_column_name: ${{ workflow.set_patrol_traj_color_column.return }}
+          output_column_name: "patrol_traj_colormap"
+
+  - name: Split Patrol Trajectories by Group
+    id: split_patrol_traj_groups
+    task: split_groups
+    partial:
+      df: ${{ workflow.traj_colormap.return }}
+      groupers: ${{ workflow.groupers.return }}
+
+  - name: Persist Patrol Trajectories
+    id: persist_patrol_traj
+    task: persist_df_wrapper
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      sanitize: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_patrol_traj_groups.return }}
+    skipif:
+      conditions:
+        - never
+
+  - title: Generate Maps
+    type: task-group
+    description: >-
+      Generate maps to visualize patrol trajectories.
+    tasks:
+      - name: Skip Map Generation
+        id: set_skip_map
+        task: set_bool_var
+
+      - name: ""
+        id: skip_traj_map
+        task: maybe_skip_df
+        partial:
+          skip: ${{ workflow.set_skip_map.return }}
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_patrol_traj_groups.return }}
+
+      - name: "Set Patrol Map Title"
+        id: set_patrol_map_title
+        task: set_string_var
+        partial:
+          var: "Patrol Trajectories Map"
+
+      - name: " "
+        id: base_map_defs
+        task: set_base_maps
+
+      - name: Rename Trajectory Columns for Display
+        id: rename_traj_display_columns
+        task: map_columns
+        partial:
+          drop_columns: []
+          retain_columns: []
+          raise_if_not_found: false
+          rename_columns:
+            segment_start: "Start Time"
+            timespan_seconds: "Duration (s)"
+            speed_kmhr: "Speed (kph)"
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.skip_traj_map.return }}
+
+      - name: Create Trajectory Map Layers
+        id: patrol_traj_map_layers
+        task: create_polyline_layer
+        skipif:
+          conditions:
+            - any_is_empty_df
+            - any_dependency_skipped
+            - all_geometry_are_none
+        partial:
+          layer_style:
+            get_width: 3
+            width_units: "pixels"
+            color_column: "patrol_traj_colormap"
+          legend: null
+          tooltip_columns: ["Start Time", "Duration (s)", "Speed (kph)"]
+        mapvalues:
+          argnames: geodataframe
+          argvalues: ${{ workflow.rename_traj_display_columns.return }}
+
+      - name: Draw Ecomaps
+        id: traj_ecomap
+        task: draw_ecomap
+        partial:
+          title: null
+          tile_layers: ${{ workflow.base_map_defs.return }}
+          north_arrow_style:
+            placement: "top-left"
+          legend_style: null
+          static: false
+          max_zoom: 20
+        mapvalues:
+          argnames: geo_layers
+          argvalues: ${{ workflow.patrol_traj_map_layers.return }}
+
+      - name: Persist Ecomaps
+        id: traj_ecomap_html_urls
+        task: persist_text
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+        mapvalues:
+          argnames: text
+          argvalues: ${{ workflow.traj_ecomap.return }}
+
+      - name: Create Ecomap Widgets
+        id: traj_map_widgets_single_views
+        task: create_map_widget_single_view
+        skipif:
+          conditions:
+            - never
+        partial:
+          title: ${{ workflow.set_patrol_map_title.return }}
+        map:
+          argnames: [view, data]
+          argvalues: ${{ workflow.traj_ecomap_html_urls.return }}
+
+      - name: Merge Ecomap Views
+        id: traj_grouped_map_widget
+        task: merge_widget_views
+        partial:
+          widgets: ${{ workflow.traj_map_widgets_single_views.return }}
+
+  - name: Create Dashboard
+    id: patrol_dashboard
+    task: gather_dashboard
+    partial:
+      details: ${{ workflow.workflow_details.return }}
+      widgets:
+        - ${{ workflow.traj_grouped_map_widget.return }}
+      groupers: ${{ workflow.groupers.return }}
+      time_range: ${{ workflow.time_range.return }}

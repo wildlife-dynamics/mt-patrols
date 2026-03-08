@@ -1,0 +1,22 @@
+base:
+  name: Base Test Case
+  mock_io: true
+  params:
+    workflow_details:
+      name: "MT Patrols"
+      description: "SMART patrol trajectories workflow"
+    time_range:
+      since: "2024-01-01T00:00:00Z"
+      until: "2024-01-31T23:59:59Z"
+    smart_client_name:
+      data_source:
+        name: "mara_triangle"
+    patrol_obs:
+      ca_uuid: "test-ca-uuid"
+      language_uuid: "test-language-uuid"
+    groupers:
+      groupers: []
+    set_patrol_traj_color_column:
+      var: "patrol_id"
+    set_skip_map:
+      var: false
