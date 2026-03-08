@@ -16,7 +16,6 @@ rjsf-overrides:
     Generate Maps.properties.set_skip_map.properties.var.description: >-
       Skip generating maps for patrol trajectories. Recommended for large datasets to improve performance.
     Generate Maps.properties.set_skip_map.properties.var.default: false
-    Generate Maps.properties.base_map_defs.properties.base_maps.title: "Map Base Layers"
     persist_patrol_traj.properties.filename_prefix.default: "patrol_trajectories"
     persist_patrol_traj.properties.filetypes.default: ["geoparquet"]
     Process Patrol Observations.properties.groupers.properties.groupers.items.anyOf:
@@ -32,7 +31,6 @@ rjsf-overrides:
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
-    Generate Maps.base_map_defs.base_maps.items.ui:options.label: false
 
 task-instance-defaults:
   skipif:
@@ -220,6 +218,10 @@ workflow:
       - name: " "
         id: base_map_defs
         task: set_base_maps
+        partial:
+          base_maps:
+            - layer_name: "LANDDX"
+              opacity: 1
 
       - name: Rename Trajectory Columns for Display
         id: rename_traj_display_columns

@@ -804,9 +804,7 @@ set_patrol_map_title = (
 # %%
 # parameters
 
-base_map_defs_params = dict(
-    base_maps=...,
-)
+base_map_defs_params = dict()
 
 # %%
 # call the task
@@ -823,7 +821,7 @@ base_map_defs = (
         ],
         unpack_depth=1,
     )
-    .partial(**base_map_defs_params)
+    .partial(base_maps=[{"layer_name": "LANDDX", "opacity": 1}], **base_map_defs_params)
     .call()
 )
 

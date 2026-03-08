@@ -544,7 +544,10 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(**(params_dict.get("base_map_defs") or {}))
+        .partial(
+            base_maps=[{"layer_name": "LANDDX", "opacity": 1}],
+            **(params_dict.get("base_map_defs") or {}),
+        )
         .call()
     )
 
