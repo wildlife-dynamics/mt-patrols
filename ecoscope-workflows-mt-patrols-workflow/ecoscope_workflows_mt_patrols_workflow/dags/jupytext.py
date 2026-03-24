@@ -27,13 +27,7 @@ from ecoscope_workflows_core.tasks.io import persist_text as persist_text
 from ecoscope_workflows_core.tasks.io import (
     set_smart_connection as set_smart_connection,
 )
-from ecoscope_workflows_core.tasks.results import (
-    create_map_widget_single_view as create_map_widget_single_view,
-)
 from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope_workflows_core.tasks.results import (
-    merge_widget_views as merge_widget_views,
-)
 from ecoscope_workflows_core.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
@@ -52,6 +46,7 @@ from ecoscope_workflows_ext_custom.tasks.io import (
 from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
+from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
 from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     apply_sql_query as apply_sql_query,
@@ -59,11 +54,15 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
+from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
     create_polyline_layer as create_polyline_layer,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    draw_bar_chart as draw_bar_chart,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap as draw_ecomap
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps as set_base_maps
@@ -986,46 +985,19 @@ traj_ecomap_html_urls = (
 
 
 # %% [markdown]
-# ## Create Ecomap Widgets
+# ## Summarize by Transport Type
 
 # %%
 # parameters
 
-traj_map_widgets_single_views_params = dict()
+transport_summary_params = dict()
 
 # %%
 # call the task
 
 
-traj_map_widgets_single_views = (
-    create_map_widget_single_view.set_task_instance_id("traj_map_widgets_single_views")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            never,
-        ],
-        unpack_depth=1,
-    )
-    .partial(title=set_patrol_map_title, **traj_map_widgets_single_views_params)
-    .map(argnames=["view", "data"], argvalues=traj_ecomap_html_urls)
-)
-
-
-# %% [markdown]
-# ## Merge Ecomap Views
-
-# %%
-# parameters
-
-traj_grouped_map_widget_params = dict()
-
-# %%
-# call the task
-
-
-traj_grouped_map_widget = (
-    merge_widget_views.set_task_instance_id("traj_grouped_map_widget")
+transport_summary = (
+    summarize_df.set_task_instance_id("transport_summary")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -1035,7 +1007,309 @@ traj_grouped_map_widget = (
         ],
         unpack_depth=1,
     )
-    .partial(widgets=traj_map_widgets_single_views, **traj_grouped_map_widget_params)
+    .partial(
+        df=sql_query_traj,
+        groupby_cols=["patrol_transport"],
+        summary_params=[
+            {
+                "display_name": "# Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Total Hours",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "Total Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+        ],
+        reset_index=True,
+        **transport_summary_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Draw Transport Bar Chart
+
+# %%
+# parameters
+
+patrol_bar_chart_params = dict(
+    layout_kwargs=...,
+    widget_id=...,
+)
+
+# %%
+# call the task
+
+
+patrol_bar_chart = (
+    draw_bar_chart.set_task_instance_id("patrol_bar_chart")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        dataframe=transport_summary,
+        category="patrol_transport",
+        bar_chart_configs=[
+            {"label": "Total Hours", "column": "Total Hours", "agg_func": "sum"},
+            {
+                "label": "Total Distance (km)",
+                "column": "Total Distance (km)",
+                "agg_func": "sum",
+            },
+        ],
+        **patrol_bar_chart_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Persist Bar Chart
+
+# %%
+# parameters
+
+persist_bar_chart_params = dict(
+    filename=...,
+    filename_suffix=...,
+)
+
+# %%
+# call the task
+
+
+persist_bar_chart = (
+    persist_text.set_task_instance_id("persist_bar_chart")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        text=patrol_bar_chart,
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        **persist_bar_chart_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Set Station Grouper
+
+# %%
+# parameters
+
+station_groupers_params = dict()
+
+# %%
+# call the task
+
+
+station_groupers = (
+    set_groupers.set_task_instance_id("station_groupers")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(groupers=[{"index_name": "station"}], **station_groupers_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Split by Station
+
+# %%
+# parameters
+
+split_by_station_params = dict()
+
+# %%
+# call the task
+
+
+split_by_station = (
+    split_groups.set_task_instance_id("split_by_station")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=sql_query_traj, groupers=station_groupers, **split_by_station_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Summarize Rangers per Station
+
+# %%
+# parameters
+
+ranger_summary_params = dict()
+
+# %%
+# call the task
+
+
+ranger_summary = (
+    summarize_df.set_task_instance_id("ranger_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        groupby_cols=["patrol_leader_name"],
+        summary_params=[
+            {
+                "display_name": "# Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Total Hours",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "Total Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+        ],
+        reset_index=True,
+        **ranger_summary_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=split_by_station)
+)
+
+
+# %% [markdown]
+# ## Set Report Groupers
+
+# %%
+# parameters
+
+report_groupers_params = dict()
+
+# %%
+# call the task
+
+
+report_groupers = (
+    set_groupers.set_task_instance_id("report_groupers")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        groupers=[{"index_name": "patrol_mandate"}, {"index_name": "station"}],
+        **report_groupers_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Create Patrol Report
+
+# %%
+# parameters
+
+create_patrol_report_params = dict(
+    template_path=...,
+)
+
+# %%
+# call the task
+
+
+create_patrol_report = (
+    create_docx.set_task_instance_id("create_patrol_report")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            never,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        context={
+            "items": [
+                {"item_type": "text", "key": "title", "value": "MT Patrols Report"},
+                {"item_type": "timerange", "key": "report_date", "value": time_range},
+                {
+                    "item_type": "image",
+                    "key": "patrol_maps",
+                    "value": traj_ecomap_html_urls,
+                    "screenshot_config": {"wait_for_timeout": 0},
+                },
+                {
+                    "item_type": "image",
+                    "key": "bar_chart",
+                    "value": persist_bar_chart,
+                    "screenshot_config": {"wait_for_timeout": 0},
+                },
+                {
+                    "item_type": "table",
+                    "key": "transport_stats",
+                    "value": transport_summary,
+                },
+                {"item_type": "table", "key": "ranger_tables", "value": ranger_summary},
+            ]
+        },
+        groupers=report_groupers,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_prefix="mt_patrols_report",
+        **create_patrol_report_params,
+    )
     .call()
 )
 
@@ -1067,7 +1341,7 @@ patrol_dashboard = (
     )
     .partial(
         details=workflow_details,
-        widgets=[traj_grouped_map_widget],
+        widgets=[],
         groupers=groupers,
         time_range=time_range,
         **patrol_dashboard_params,

@@ -140,6 +140,17 @@ class GenerateMaps(BaseModel):
     set_skip_map: SetSkipMap | None = Field(None, title="Skip Map Generation")
 
 
+class CreatePatrolReport(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    template_path: str = Field(
+        ...,
+        description="Path or URL to the Word template (.docx) file with Jinja2 placeholders. Supports local paths and remote URLs (http://, https://).",
+        title="Template Path",
+    )
+
+
 class SMARTConnection(BaseModel):
     name: str = Field(..., title="Data Source")
 
@@ -193,6 +204,26 @@ class TemporalGrouper(BaseModel):
 
 class ValueGrouper(BaseModel):
     index_name: str = Field(..., title="Category")
+
+
+class AxisStyle(BaseModel):
+    title: str | None = Field(None, title="Title")
+    range: list[float] | None = Field(None, title="Range")
+
+
+class LayoutStyle(BaseModel):
+    font_size: float | None = Field(None, title="Font Size")
+    font_color: str | None = Field(None, title="Font Color")
+    font_style: str | None = Field(None, title="Font Style")
+    plot_bgcolor: str | None = Field(None, title="Plot Bgcolor")
+    showlegend: bool | None = Field(None, title="Showlegend")
+    hovermode: str | None = Field(None, title="Hovermode")
+    legend_title: str | None = Field(None, title="Legend Title")
+    title: str | None = Field(None, title="Title")
+    title_x: float | None = Field(None, title="Title X")
+    title_y: float | None = Field(None, title="Title Y")
+    xaxis: AxisStyle | None = Field(None, title="Xaxis")
+    yaxis: AxisStyle | None = Field(None, title="Yaxis")
 
 
 class SmartClientName(BaseModel):
@@ -256,6 +287,23 @@ class ProcessPatrolObservations(BaseModel):
     )
 
 
+class PatrolBarChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    layout_kwargs: LayoutStyle | None = Field(
+        None,
+        description="Additional kwargs passed to plotly.go.Figure(layout).",
+        title="Layout Kwargs",
+    )
+
+
+class TransportSummary(BaseModel):
+    patrol_bar_chart: PatrolBarChart | None = Field(
+        None, title="Draw Transport Bar Chart"
+    )
+
+
 class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -282,4 +330,12 @@ class FormData(BaseModel):
         None,
         alias="Generate Maps",
         description="Generate maps to visualize patrol trajectories.",
+    )
+    Transport_Summary: TransportSummary | None = Field(
+        None,
+        alias="Transport Summary",
+        description="Summarize patrol data by transport type and generate a bar chart.",
+    )
+    create_patrol_report: CreatePatrolReport | None = Field(
+        None, title="Create Patrol Report"
     )
