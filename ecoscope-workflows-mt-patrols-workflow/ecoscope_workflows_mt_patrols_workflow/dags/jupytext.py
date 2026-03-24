@@ -827,7 +827,9 @@ base_map_defs = (
         ],
         unpack_depth=1,
     )
-    .partial(base_maps=[{"layer_name": "LANDDX", "opacity": 1}], **base_map_defs_params)
+    .partial(
+        base_maps=[{"layer_name": "TERRAIN", "opacity": 1}], **base_map_defs_params
+    )
     .call()
 )
 

@@ -220,7 +220,7 @@ workflow:
         task: set_base_maps
         partial:
           base_maps:
-            - layer_name: "LANDDX"
+            - layer_name: "TERRAIN"
               opacity: 1
 
       - name: Rename Trajectory Columns for Display

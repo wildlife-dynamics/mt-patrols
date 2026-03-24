@@ -605,7 +605,7 @@ def main(params: Params):
             partial={
                 "base_maps": [
                     {
-                        "layer_name": "LANDDX",
+                        "layer_name": "TERRAIN",
                         "opacity": 1,
                     },
                 ],
