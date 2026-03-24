@@ -17,7 +17,7 @@ rjsf-overrides:
       Skip generating maps for patrol trajectories. Recommended for large datasets to improve performance.
     Generate Maps.properties.set_skip_map.properties.var.default: false
     persist_patrol_traj.properties.filename_prefix.default: "patrol_trajectories"
-    persist_patrol_traj.properties.filetypes.default: ["geoparquet"]
+    persist_patrol_traj.properties.filetypes.default: ["parquet"]
     Process Patrol Observations.properties.groupers.properties.groupers.items.anyOf:
       - {"$ref": "#/$defs/ValueGrouper"}
       - {"$ref": "#/$defs/TemporalGrouper"}
