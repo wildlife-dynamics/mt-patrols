@@ -474,6 +474,7 @@ def main(params: Params):
         )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="patrol_trajectories",
             sanitize=True,
             **(params_dict.get("persist_patrol_traj") or {}),
         )
@@ -640,6 +641,7 @@ def main(params: Params):
         )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_suffix="patrol_map",
             **(params_dict.get("traj_ecomap_html_urls") or {}),
         )
         .mapvalues(argnames=["text"], argvalues=traj_ecomap)
@@ -730,6 +732,7 @@ def main(params: Params):
         .partial(
             text=patrol_bar_chart,
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_suffix="transport_bar_chart",
             **(params_dict.get("persist_bar_chart") or {}),
         )
         .call()

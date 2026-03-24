@@ -542,6 +542,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "patrol_trajectories",
                 "sanitize": True,
             }
             | (params_dict.get("persist_patrol_traj") or {}),
@@ -740,6 +741,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_suffix": "patrol_map",
             }
             | (params_dict.get("traj_ecomap_html_urls") or {}),
             method="mapvalues",
@@ -840,6 +842,7 @@ def main(params: Params):
             partial={
                 "text": DependsOn("patrol_bar_chart"),
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_suffix": "transport_bar_chart",
             }
             | (params_dict.get("persist_bar_chart") or {}),
             method="call",

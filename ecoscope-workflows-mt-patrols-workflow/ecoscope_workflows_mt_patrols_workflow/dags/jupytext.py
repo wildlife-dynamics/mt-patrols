@@ -691,7 +691,6 @@ split_patrol_traj_groups = (
 persist_patrol_traj_params = dict(
     filename=...,
     filetypes=...,
-    filename_prefix=...,
 )
 
 # %%
@@ -710,6 +709,7 @@ persist_patrol_traj = (
     )
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_prefix="patrol_trajectories",
         sanitize=True,
         **persist_patrol_traj_params,
     )
@@ -958,7 +958,6 @@ traj_ecomap = (
 
 traj_ecomap_html_urls_params = dict(
     filename=...,
-    filename_suffix=...,
 )
 
 # %%
@@ -978,6 +977,7 @@ traj_ecomap_html_urls = (
     )
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_suffix="patrol_map",
         **traj_ecomap_html_urls_params,
     )
     .mapvalues(argnames=["text"], argvalues=traj_ecomap)
@@ -1089,7 +1089,6 @@ patrol_bar_chart = (
 
 persist_bar_chart_params = dict(
     filename=...,
-    filename_suffix=...,
 )
 
 # %%
@@ -1110,6 +1109,7 @@ persist_bar_chart = (
     .partial(
         text=patrol_bar_chart,
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_suffix="transport_bar_chart",
         **persist_bar_chart_params,
     )
     .call()

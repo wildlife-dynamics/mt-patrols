@@ -114,11 +114,6 @@ class PersistPatrolTraj(BaseModel):
     filetypes: list[Filetype] | None = Field(
         ["csv"], description="The output format", title="Filetypes"
     )
-    filename_prefix: str | None = Field(
-        None,
-        description="            Optional filename prefix to persist text to within the `root_path`.\n            We will always add a suffix based on the dataframe content hash to avoid duplicates.\n            ",
-        title="Filename Prefix",
-    )
 
 
 class SetSkipMap(BaseModel):

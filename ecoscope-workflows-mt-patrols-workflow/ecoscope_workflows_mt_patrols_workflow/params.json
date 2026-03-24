@@ -286,13 +286,6 @@
           "type": "array",
           "description": "The output format",
           "uniqueItems": true
-        },
-        "filename_prefix": {
-          "default": null,
-          "title": "Filename Prefix",
-          "type": "string",
-          "description": "            Optional filename prefix to persist text to within the `root_path`.\n            We will always add a suffix based on the dataframe content hash to avoid duplicates.\n            ",
-          "ecoscope:advanced": true
         }
       },
       "required": [],
@@ -656,12 +649,6 @@
       "ui:order": [
         "query",
         "columns"
-      ]
-    },
-    "persist_patrol_traj": {
-      "ui:order": [
-        "filetypes",
-        "filename_prefix"
       ]
     },
     "ui:order": [
