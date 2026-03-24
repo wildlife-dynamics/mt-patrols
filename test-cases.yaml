@@ -22,3 +22,5 @@ base:
       var: "patrol_id"
     set_skip_map:
       var: false
+    create_patrol_report:
+      template_path: /Users/yunwu/MEP/wt/mt-patrols/resources/templates/mt_patrols_template.docx

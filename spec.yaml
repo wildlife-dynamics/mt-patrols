@@ -281,30 +281,145 @@ workflow:
           argnames: text
           argvalues: ${{ workflow.traj_ecomap.return }}
 
-      - name: Create Ecomap Widgets
-        id: traj_map_widgets_single_views
-        task: create_map_widget_single_view
-        skipif:
-          conditions:
-            - never
+  - title: Transport Summary
+    type: task-group
+    description: >-
+      Summarize patrol data by transport type and generate a bar chart.
+    tasks:
+      - name: Summarize by Transport Type
+        id: transport_summary
+        task: summarize_df
         partial:
-          title: ${{ workflow.set_patrol_map_title.return }}
-        map:
-          argnames: [view, data]
-          argvalues: ${{ workflow.traj_ecomap_html_urls.return }}
+          df: ${{ workflow.sql_query_traj.return }}
+          groupby_cols: ["patrol_transport"]
+          summary_params:
+            - display_name: "# Patrols"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Hours"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+          reset_index: true
 
-      - name: Merge Ecomap Views
-        id: traj_grouped_map_widget
-        task: merge_widget_views
+      - name: Draw Transport Bar Chart
+        id: patrol_bar_chart
+        task: draw_bar_chart
         partial:
-          widgets: ${{ workflow.traj_map_widgets_single_views.return }}
+          dataframe: ${{ workflow.transport_summary.return }}
+          category: "patrol_transport"
+          bar_chart_configs:
+            - label: "Total Hours"
+              column: "Total Hours"
+              agg_func: "sum"
+            - label: "Total Distance (km)"
+              column: "Total Distance (km)"
+              agg_func: "sum"
+
+      - name: Persist Bar Chart
+        id: persist_bar_chart
+        task: persist_text
+        partial:
+          text: ${{ workflow.patrol_bar_chart.return }}
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+
+  - title: Ranger Summary
+    type: task-group
+    description: >-
+      Summarize ranger patrol activity by station.
+    tasks:
+      - name: Set Station Grouper
+        id: station_groupers
+        task: set_groupers
+        partial:
+          groupers:
+            - index_name: "station"
+
+      - name: Split by Station
+        id: split_by_station
+        task: split_groups
+        partial:
+          df: ${{ workflow.sql_query_traj.return }}
+          groupers: ${{ workflow.station_groupers.return }}
+
+      - name: Summarize Rangers per Station
+        id: ranger_summary
+        task: summarize_df
+        partial:
+          groupby_cols: ["patrol_leader_name"]
+          summary_params:
+            - display_name: "# Patrols"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Hours"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+          reset_index: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_by_station.return }}
+
+  - name: Set Report Groupers
+    id: report_groupers
+    task: set_groupers
+    partial:
+      groupers:
+        - index_name: "patrol_mandate"
+        - index_name: "station"
+
+  - name: Create Patrol Report
+    id: create_patrol_report
+    task: ecoscope_workflows_ext_custom.tasks.results.create_docx
+    partial:
+      context:
+        items:
+          - item_type: text
+            key: title
+            value: "MT Patrols Report"
+          - item_type: timerange
+            key: report_date
+            value: ${{ workflow.time_range.return }}
+          - item_type: image
+            key: patrol_maps
+            value: ${{ workflow.traj_ecomap_html_urls.return }}
+            screenshot_config:
+              wait_for_timeout: 0
+          - item_type: image
+            key: bar_chart
+            value: ${{ workflow.persist_bar_chart.return }}
+            screenshot_config:
+              wait_for_timeout: 0
+          - item_type: table
+            key: transport_stats
+            value: ${{ workflow.transport_summary.return }}
+          - item_type: table
+            key: ranger_tables
+            value: ${{ workflow.ranger_summary.return }}
+      groupers: ${{ workflow.report_groupers.return }}
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_prefix: mt_patrols_report
+    skipif:
+      conditions:
+        - never
 
   - name: Create Dashboard
     id: patrol_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return }}
-      widgets:
-        - ${{ workflow.traj_grouped_map_widget.return }}
+      widgets: []
       groupers: ${{ workflow.groupers.return }}
       time_range: ${{ workflow.time_range.return }}
