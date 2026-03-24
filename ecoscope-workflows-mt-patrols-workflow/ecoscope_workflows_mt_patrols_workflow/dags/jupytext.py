@@ -47,6 +47,9 @@ from ecoscope_workflows_core.tasks.transformation import (
 )
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
 from ecoscope_workflows_ext_custom.tasks.io import (
+    get_patrol_observations_from_smart as get_patrol_observations_from_smart,
+)
+from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
 from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
@@ -55,9 +58,6 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.io import (
-    get_patrol_observations_from_smart as get_patrol_observations_from_smart,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
@@ -182,6 +182,12 @@ patrol_obs_params = dict(
     language_uuid=...,
     patrol_mandate=...,
     patrol_transport=...,
+    read_path=...,
+    persist=...,
+    write_path=...,
+    write_filetypes=...,
+    write_filename_prefix=...,
+    write_sanitize=...,
 )
 
 # %%

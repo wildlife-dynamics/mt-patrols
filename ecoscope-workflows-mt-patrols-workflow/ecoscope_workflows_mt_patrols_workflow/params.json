@@ -94,6 +94,58 @@
           "type": "string",
           "description": "Patrol Transport",
           "ecoscope:advanced": true
+        },
+        "read_path": {
+          "default": null,
+          "title": "Read Path",
+          "type": "string",
+          "description": "Optional file path to read data from instead of fetching from SMART API. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv",
+          "ecoscope:advanced": true
+        },
+        "persist": {
+          "default": false,
+          "title": "Persist",
+          "type": "boolean",
+          "description": "Whether to persist the data to disk. Requires write_path to be set."
+        },
+        "write_path": {
+          "default": null,
+          "title": "Write Path",
+          "type": "string",
+          "description": "Optional root path to persist the data to.",
+          "ecoscope:advanced": true
+        },
+        "write_filetypes": {
+          "default": [
+            "csv"
+          ],
+          "items": {
+            "enum": [
+              "csv",
+              "gpkg",
+              "geoparquet"
+            ],
+            "type": "string"
+          },
+          "title": "Write Filetypes",
+          "type": "array",
+          "description": "Output file formats when writing. Only used if write_path is provided.",
+          "uniqueItems": true,
+          "ecoscope:advanced": true
+        },
+        "write_filename_prefix": {
+          "default": null,
+          "title": "Write Filename Prefix",
+          "type": "string",
+          "description": "Optional filename prefix when writing. A hash suffix will be added automatically.",
+          "ecoscope:advanced": true
+        },
+        "write_sanitize": {
+          "default": false,
+          "title": "Write Sanitize",
+          "type": "boolean",
+          "description": "Whether to sanitize the dataframe for Arrow compatibility before persisting. Recommended when including observation details.",
+          "ecoscope:advanced": true
         }
       },
       "required": [
@@ -446,7 +498,13 @@
         "ca_uuid",
         "language_uuid",
         "patrol_mandate",
-        "patrol_transport"
+        "patrol_transport",
+        "read_path",
+        "persist",
+        "write_path",
+        "write_filetypes",
+        "write_filename_prefix",
+        "write_sanitize"
       ]
     },
     "sql_query_traj": {

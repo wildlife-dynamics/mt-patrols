@@ -16,6 +16,12 @@ class WorkflowDetails(BaseModel):
     description: str | None = Field("", title="Workflow Description")
 
 
+class WriteFiletype(str, Enum):
+    csv = "csv"
+    gpkg = "gpkg"
+    geoparquet = "geoparquet"
+
+
 class PatrolObs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -29,6 +35,36 @@ class PatrolObs(BaseModel):
     )
     patrol_transport: str | None = Field(
         None, description="Patrol Transport", title="Patrol Transport"
+    )
+    read_path: str | None = Field(
+        None,
+        description="Optional file path to read data from instead of fetching from SMART API. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv",
+        title="Read Path",
+    )
+    persist: bool | None = Field(
+        False,
+        description="Whether to persist the data to disk. Requires write_path to be set.",
+        title="Persist",
+    )
+    write_path: str | None = Field(
+        None,
+        description="Optional root path to persist the data to.",
+        title="Write Path",
+    )
+    write_filetypes: list[WriteFiletype] | None = Field(
+        ["csv"],
+        description="Output file formats when writing. Only used if write_path is provided.",
+        title="Write Filetypes",
+    )
+    write_filename_prefix: str | None = Field(
+        None,
+        description="Optional filename prefix when writing. A hash suffix will be added automatically.",
+        title="Write Filename Prefix",
+    )
+    write_sanitize: bool | None = Field(
+        False,
+        description="Whether to sanitize the dataframe for Arrow compatibility before persisting. Recommended when including observation details.",
+        title="Write Sanitize",
     )
 
 

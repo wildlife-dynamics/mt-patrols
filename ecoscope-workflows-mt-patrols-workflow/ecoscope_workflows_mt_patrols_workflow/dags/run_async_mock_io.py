@@ -26,7 +26,7 @@ from ecoscope_workflows_core.tasks.skip import any_is_empty_df as any_is_empty_d
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
 
 get_patrol_observations_from_smart = create_task_magicmock(  # 🧪
-    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
+    anchor="ecoscope_workflows_ext_custom.tasks.io",  # 🧪
     func_name="get_patrol_observations_from_smart",  # 🧪
 )  # 🧪
 from ecoscope_workflows_core.tasks.config import set_bool_var as set_bool_var

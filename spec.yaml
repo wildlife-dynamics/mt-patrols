@@ -55,7 +55,7 @@ workflow:
 
   - name: Get Patrol Observations
     id: patrol_obs
-    task: get_patrol_observations_from_smart
+    task: ecoscope_workflows_ext_custom.tasks.io.get_patrol_observations_from_smart
     partial:
       client: ${{ workflow.smart_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
