@@ -1117,6 +1117,42 @@ persist_bar_chart = (
 
 
 # %% [markdown]
+# ## Persist Transport Summary
+
+# %%
+# parameters
+
+persist_transport_summary_params = dict(
+    filename=...,
+)
+
+# %%
+# call the task
+
+
+persist_transport_summary = (
+    persist_df_wrapper.set_task_instance_id("persist_transport_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            never,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=transport_summary,
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_prefix="transport_summary",
+        filetypes=["csv"],
+        sanitize=True,
+        **persist_transport_summary_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Set Station Grouper
 
 # %%
@@ -1222,6 +1258,41 @@ ranger_summary = (
         **ranger_summary_params,
     )
     .mapvalues(argnames=["df"], argvalues=split_by_station)
+)
+
+
+# %% [markdown]
+# ## Persist Ranger Summary
+
+# %%
+# parameters
+
+persist_ranger_summary_params = dict(
+    filename=...,
+)
+
+# %%
+# call the task
+
+
+persist_ranger_summary = (
+    persist_df_wrapper.set_task_instance_id("persist_ranger_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            never,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_prefix="ranger_summary",
+        filetypes=["csv"],
+        sanitize=True,
+        **persist_ranger_summary_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=ranger_summary)
 )
 
 

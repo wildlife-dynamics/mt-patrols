@@ -329,6 +329,19 @@ workflow:
           text: ${{ workflow.patrol_bar_chart.return }}
           root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
 
+      - name: Persist Transport Summary
+        id: persist_transport_summary
+        task: persist_df_wrapper
+        partial:
+          df: ${{ workflow.transport_summary.return }}
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "transport_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        skipif:
+          conditions:
+            - never
+
   - title: Ranger Summary
     type: task-group
     description: >-
@@ -371,6 +384,21 @@ workflow:
         mapvalues:
           argnames: df
           argvalues: ${{ workflow.split_by_station.return }}
+
+      - name: Persist Ranger Summary
+        id: persist_ranger_summary
+        task: persist_df_wrapper
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "ranger_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.ranger_summary.return }}
+        skipif:
+          conditions:
+            - never
 
   - name: Set Report Groupers
     id: report_groupers
