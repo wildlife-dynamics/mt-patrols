@@ -118,9 +118,11 @@ def main(params: Params):
         "transport_summary": ["sql_query_traj"],
         "patrol_bar_chart": ["transport_summary"],
         "persist_bar_chart": ["patrol_bar_chart"],
+        "persist_transport_summary": ["transport_summary"],
         "station_groupers": [],
         "split_by_station": ["sql_query_traj", "station_groupers"],
         "ranger_summary": ["split_by_station"],
+        "persist_ranger_summary": ["ranger_summary"],
         "report_groupers": [],
         "create_patrol_report": [
             "time_range",
@@ -842,6 +844,30 @@ def main(params: Params):
             | (params_dict.get("persist_bar_chart") or {}),
             method="call",
         ),
+        "persist_transport_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_transport_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("transport_summary"),
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "transport_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_transport_summary") or {}),
+            method="call",
+        ),
         "station_groupers": Node(
             async_task=set_groupers.validate()
             .set_task_instance_id("station_groupers")
@@ -930,6 +956,33 @@ def main(params: Params):
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("split_by_station"),
+            },
+        ),
+        "persist_ranger_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_ranger_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "ranger_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_ranger_summary") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("ranger_summary"),
             },
         ),
         "report_groupers": Node(
