@@ -1468,7 +1468,12 @@ create_patrol_report = (
     .partial(
         context={
             "items": [
-                {"item_type": "timerange", "key": "report_date", "value": time_range},
+                {
+                    "item_type": "timerange",
+                    "key": "report_date",
+                    "value": time_range,
+                    "format": "%b %Y",
+                },
                 {
                     "item_type": "image",
                     "key": "patrol_maps",

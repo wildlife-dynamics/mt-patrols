@@ -977,6 +977,7 @@ def main(params: Params):
                         "item_type": "timerange",
                         "key": "report_date",
                         "value": time_range,
+                        "format": "%b %Y",
                     },
                     {
                         "item_type": "image",
