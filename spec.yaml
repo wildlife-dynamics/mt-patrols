@@ -312,7 +312,7 @@ workflow:
               original_unit: "s"
               new_unit: "h"
               decimal_places: 1
-          reset_index: true
+          reset_index: false
 
       - name: Summarize by Station
         id: station_summary
@@ -402,7 +402,7 @@ workflow:
               original_unit: "s"
               new_unit: "h"
               decimal_places: 1
-          reset_index: true
+          reset_index: false
 
       - name: Persist Mandate Summary
         id: persist_mandate_summary
@@ -456,7 +456,7 @@ workflow:
               original_unit: "s"
               new_unit: "h"
               decimal_places: 1
-          reset_index: true
+          reset_index: false
         mapvalues:
           argnames: df
           argvalues: ${{ workflow.split_by_station.return }}

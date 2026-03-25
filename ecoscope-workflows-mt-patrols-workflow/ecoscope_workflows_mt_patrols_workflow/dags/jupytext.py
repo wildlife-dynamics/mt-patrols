@@ -990,7 +990,7 @@ transport_summary = (
                 "decimal_places": 1,
             },
         ],
-        reset_index=True,
+        reset_index=False,
         **transport_summary_params,
     )
     .call()
@@ -1220,7 +1220,7 @@ mandate_summary = (
                 "decimal_places": 1,
             },
         ],
-        reset_index=True,
+        reset_index=False,
         **mandate_summary_params,
     )
     .call()
@@ -1366,7 +1366,7 @@ ranger_summary = (
                 "decimal_places": 1,
             },
         ],
-        reset_index=True,
+        reset_index=False,
         **ranger_summary_params,
     )
     .mapvalues(argnames=["df"], argvalues=split_by_station)
