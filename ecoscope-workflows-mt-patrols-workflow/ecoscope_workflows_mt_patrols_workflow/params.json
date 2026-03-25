@@ -20,21 +20,6 @@
       "description": "Add information that will help to differentiate this workflow from another.",
       "title": "Workflow Details"
     },
-    "smart_client_name": {
-      "additionalProperties": false,
-      "properties": {
-        "data_source": {
-          "$ref": "#/$defs/SMARTConnection",
-          "title": "",
-          "description": "Select one of your configured data sources."
-        }
-      },
-      "required": [
-        "data_source"
-      ],
-      "type": "object",
-      "title": "Data Source"
-    },
     "time_range": {
       "additionalProperties": false,
       "properties": {
@@ -71,89 +56,36 @@
     "patrol_obs": {
       "additionalProperties": false,
       "properties": {
-        "ca_uuid": {
-          "title": "Conservation Area UUID",
+        "file_path": {
+          "title": "File Path",
           "type": "string",
-          "description": "Conservation Area UUID"
+          "description": "Path to the file to load. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv, .shp"
         },
-        "language_uuid": {
-          "title": "Language UUID",
-          "type": "string",
-          "description": "Language UUID"
-        },
-        "patrol_mandate": {
-          "default": null,
-          "title": "Patrol Mandate",
-          "type": "string",
-          "description": "Patrol Mandate",
-          "ecoscope:advanced": true
-        },
-        "patrol_transport": {
-          "default": null,
-          "title": "Patrol Transport",
-          "type": "string",
-          "description": "Patrol Transport",
-          "ecoscope:advanced": true
-        },
-        "read_path": {
-          "default": null,
-          "title": "Read Path",
-          "type": "string",
-          "description": "Optional file path to read data from instead of fetching from SMART API. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv",
-          "ecoscope:advanced": true
-        },
-        "persist": {
-          "default": false,
-          "title": "Persist",
-          "type": "boolean",
-          "description": "Whether to persist the data to disk. Requires write_path to be set."
-        },
-        "write_path": {
-          "default": null,
-          "title": "Write Path",
-          "type": "string",
-          "description": "Optional root path to persist the data to.",
-          "ecoscope:advanced": true
-        },
-        "write_filetypes": {
-          "default": [
-            "csv"
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ],
-          "items": {
-            "enum": [
-              "csv",
-              "gpkg",
-              "geoparquet"
-            ],
-            "type": "string"
-          },
-          "title": "Write Filetypes",
-          "type": "array",
-          "description": "Output file formats when writing. Only used if write_path is provided.",
-          "uniqueItems": true,
-          "ecoscope:advanced": true
-        },
-        "write_filename_prefix": {
           "default": null,
-          "title": "Write Filename Prefix",
-          "type": "string",
-          "description": "Optional filename prefix when writing. A hash suffix will be added automatically.",
-          "ecoscope:advanced": true
+          "title": "Layer",
+          "description": "Layer name for GeoPackage files (optional, only used for .gpkg files)"
         },
-        "write_sanitize": {
+        "deserialize_json": {
           "default": false,
-          "title": "Write Sanitize",
+          "title": "Deserialize Json",
           "type": "boolean",
-          "description": "Whether to sanitize the dataframe for Arrow compatibility before persisting. Recommended when including observation details.",
-          "ecoscope:advanced": true
+          "description": "Whether to deserialize JSON strings back to Python objects (lists, dicts). Set to True when loading files saved by persist_df_wrapper, which serializes complex objects to JSON."
         }
       },
       "required": [
-        "ca_uuid",
-        "language_uuid"
+        "file_path"
       ],
       "type": "object",
-      "title": "Get Patrol Observations"
+      "title": "Load Patrol Observations"
     },
     "patrol_traj": {
       "additionalProperties": false,
@@ -342,19 +274,6 @@
     }
   },
   "$defs": {
-    "SMARTConnection": {
-      "properties": {
-        "name": {
-          "title": "Data Source",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "title": "SMARTConnection",
-      "type": "object"
-    },
     "TimezoneInfo": {
       "properties": {
         "label": {
@@ -633,16 +552,9 @@
     },
     "patrol_obs": {
       "ui:order": [
-        "ca_uuid",
-        "language_uuid",
-        "patrol_mandate",
-        "patrol_transport",
-        "read_path",
-        "persist",
-        "write_path",
-        "write_filetypes",
-        "write_filename_prefix",
-        "write_sanitize"
+        "file_path",
+        "layer",
+        "deserialize_json"
       ]
     },
     "sql_query_traj": {
@@ -653,7 +565,6 @@
     },
     "ui:order": [
       "workflow_details",
-      "smart_client_name",
       "time_range",
       "patrol_obs",
       "patrol_traj",

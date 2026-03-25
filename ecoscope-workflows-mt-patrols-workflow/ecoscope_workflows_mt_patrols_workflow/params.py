@@ -16,55 +16,24 @@ class WorkflowDetails(BaseModel):
     description: str | None = Field("", title="Workflow Description")
 
 
-class WriteFiletype(str, Enum):
-    csv = "csv"
-    gpkg = "gpkg"
-    geoparquet = "geoparquet"
-
-
 class PatrolObs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    ca_uuid: str = Field(
-        ..., description="Conservation Area UUID", title="Conservation Area UUID"
+    file_path: str = Field(
+        ...,
+        description="Path to the file to load. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv, .shp",
+        title="File Path",
     )
-    language_uuid: str = Field(..., description="Language UUID", title="Language UUID")
-    patrol_mandate: str | None = Field(
-        None, description="Patrol Mandate", title="Patrol Mandate"
-    )
-    patrol_transport: str | None = Field(
-        None, description="Patrol Transport", title="Patrol Transport"
-    )
-    read_path: str | None = Field(
+    layer: str | None = Field(
         None,
-        description="Optional file path to read data from instead of fetching from SMART API. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv",
-        title="Read Path",
+        description="Layer name for GeoPackage files (optional, only used for .gpkg files)",
+        title="Layer",
     )
-    persist: bool | None = Field(
+    deserialize_json: bool | None = Field(
         False,
-        description="Whether to persist the data to disk. Requires write_path to be set.",
-        title="Persist",
-    )
-    write_path: str | None = Field(
-        None,
-        description="Optional root path to persist the data to.",
-        title="Write Path",
-    )
-    write_filetypes: list[WriteFiletype] | None = Field(
-        ["csv"],
-        description="Output file formats when writing. Only used if write_path is provided.",
-        title="Write Filetypes",
-    )
-    write_filename_prefix: str | None = Field(
-        None,
-        description="Optional filename prefix when writing. A hash suffix will be added automatically.",
-        title="Write Filename Prefix",
-    )
-    write_sanitize: bool | None = Field(
-        False,
-        description="Whether to sanitize the dataframe for Arrow compatibility before persisting. Recommended when including observation details.",
-        title="Write Sanitize",
+        description="Whether to deserialize JSON strings back to Python objects (lists, dicts). Set to True when loading files saved by persist_df_wrapper, which serializes complex objects to JSON.",
+        title="Deserialize Json",
     )
 
 
@@ -132,10 +101,6 @@ class CreatePatrolReport(BaseModel):
         description="Path or URL to the Word template (.docx) file with Jinja2 placeholders. Supports local paths and remote URLs (http://, https://).",
         title="Template Path",
     )
-
-
-class SMARTConnection(BaseModel):
-    name: str = Field(..., title="Data Source")
 
 
 class TimezoneInfo(BaseModel):
@@ -209,15 +174,6 @@ class LayoutStyle(BaseModel):
     yaxis: AxisStyle | None = Field(None, title="Yaxis")
 
 
-class SmartClientName(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    data_source: SMARTConnection = Field(
-        ..., description="Select one of your configured data sources.", title=""
-    )
-
-
 class TimeRange(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -278,11 +234,10 @@ class Params(BaseModel):
         description="Add information that will help to differentiate this workflow from another.",
         title="Workflow Details",
     )
-    smart_client_name: SmartClientName | None = Field(None, title="Data Source")
     time_range: TimeRange | None = Field(
         None, description="Choose the period of time to analyze.", title="Time Range"
     )
-    patrol_obs: PatrolObs | None = Field(None, title="Get Patrol Observations")
+    patrol_obs: PatrolObs | None = Field(None, title="Load Patrol Observations")
     patrol_traj: PatrolTraj | None = Field(None, title="Trajectory Segment Filter")
     customize_columns_traj: CustomizeColumnsTraj | None = Field(
         None, title="Process Columns"
