@@ -42,13 +42,6 @@ from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
 from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_path_layer as create_path_layer,
-)
-from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
-from ecoscope_workflows_ext_custom.tasks.results import (
-    set_base_maps_pydeck as set_base_maps_pydeck,
-)
 from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     apply_sql_query as apply_sql_query,
@@ -61,8 +54,13 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    create_polyline_layer as create_polyline_layer,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import (
     draw_bar_chart as draw_bar_chart,
 )
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap as draw_ecomap
+from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps as set_base_maps
 from ecoscope_workflows_ext_ecoscope.tasks.skip import (
     all_geometry_are_none as all_geometry_are_none,
 )
@@ -736,6 +734,34 @@ skip_traj_map = (
 
 
 # %% [markdown]
+# ## Set Patrol Map Title
+
+# %%
+# parameters
+
+set_patrol_map_title_params = dict()
+
+# %%
+# call the task
+
+
+set_patrol_map_title = (
+    set_string_var.set_task_instance_id("set_patrol_map_title")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(var="Patrol Trajectories Map", **set_patrol_map_title_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ##
 
 # %%
@@ -748,7 +774,7 @@ base_map_defs_params = dict()
 
 
 base_map_defs = (
-    set_base_maps_pydeck.set_task_instance_id("base_map_defs")
+    set_base_maps.set_task_instance_id("base_map_defs")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -759,13 +785,7 @@ base_map_defs = (
         unpack_depth=1,
     )
     .partial(
-        base_maps=[
-            {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-                "opacity": 1,
-            }
-        ],
-        **base_map_defs_params,
+        base_maps=[{"layer_name": "TERRAIN", "opacity": 1}], **base_map_defs_params
     )
     .call()
 )
@@ -815,14 +835,16 @@ rename_traj_display_columns = (
 # %%
 # parameters
 
-patrol_traj_map_layers_params = dict()
+patrol_traj_map_layers_params = dict(
+    zoom=...,
+)
 
 # %%
 # call the task
 
 
 patrol_traj_map_layers = (
-    create_path_layer.set_task_instance_id("patrol_traj_map_layers")
+    create_polyline_layer.set_task_instance_id("patrol_traj_map_layers")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -837,9 +859,10 @@ patrol_traj_map_layers = (
         layer_style={
             "get_width": 3,
             "width_units": "pixels",
-            "get_color": "patrol_traj_colormap",
+            "color_column": "patrol_traj_colormap",
         },
         legend=None,
+        tooltip_columns=["Start Time", "Duration (s)", "Speed (kph)"],
         **patrol_traj_map_layers_params,
     )
     .mapvalues(argnames=["geodataframe"], argvalues=rename_traj_display_columns)
@@ -862,7 +885,7 @@ traj_ecomap_params = dict(
 
 
 traj_ecomap = (
-    draw_map.set_task_instance_id("traj_ecomap")
+    draw_ecomap.set_task_instance_id("traj_ecomap")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -875,6 +898,7 @@ traj_ecomap = (
     .partial(
         title=None,
         tile_layers=base_map_defs,
+        north_arrow_style={"placement": "top-left"},
         legend_style=None,
         static=False,
         max_zoom=20,
