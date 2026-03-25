@@ -2,7 +2,6 @@
 import json
 import os
 
-from ecoscope_workflows_core.tasks.config import set_bool_var as set_bool_var
 from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
 from ecoscope_workflows_core.tasks.config import (
     set_workflow_details as set_workflow_details,
@@ -32,10 +31,6 @@ from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
 from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
-from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    apply_sql_query as apply_sql_query,
-)
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
@@ -113,7 +108,7 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(**(params_dict.get("patrol_obs") or {}))
+        .partial(deserialize_json=False, **(params_dict.get("patrol_obs") or {}))
         .call()
     )
 
@@ -270,76 +265,6 @@ def main(params: Params):
         .call()
     )
 
-    customize_columns_traj = (
-        map_columns.validate()
-        .set_task_instance_id("customize_columns_traj")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=customize_columns_internally,
-            rename_columns={},
-            retain_columns=[],
-            raise_if_not_found=False,
-            **(params_dict.get("customize_columns_traj") or {}),
-        )
-        .call()
-    )
-
-    sql_query_traj = (
-        apply_sql_query.validate()
-        .set_task_instance_id("sql_query_traj")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(df=customize_columns_traj, **(params_dict.get("sql_query_traj") or {}))
-        .call()
-    )
-
-    groupers = (
-        set_groupers.validate()
-        .set_task_instance_id("groupers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params_dict.get("groupers") or {}))
-        .call()
-    )
-
-    set_patrol_traj_color_column = (
-        set_string_var.validate()
-        .set_task_instance_id("set_patrol_traj_color_column")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params_dict.get("set_patrol_traj_color_column") or {}))
-        .call()
-    )
-
     traj_add_temporal_index = (
         add_temporal_index.validate()
         .set_task_instance_id("traj_add_temporal_index")
@@ -353,9 +278,9 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=sql_query_traj,
+            df=customize_columns_internally,
             time_col="segment_start",
-            groupers=groupers,
+            groupers=[{"index_name": "patrol_mandate"}],
             cast_to_datetime=True,
             format="mixed",
             **(params_dict.get("traj_add_temporal_index") or {}),
@@ -395,7 +320,7 @@ def main(params: Params):
                 "#331878",
                 "#E76826",
             ],
-            input_column_name=set_patrol_traj_color_column,
+            input_column_name="station",
             output_column_name="patrol_traj_colormap",
             **(params_dict.get("traj_colormap") or {}),
         )
@@ -416,7 +341,7 @@ def main(params: Params):
         )
         .partial(
             df=traj_colormap,
-            groupers=groupers,
+            groupers=[{"index_name": "patrol_mandate"}],
             **(params_dict.get("split_patrol_traj_groups") or {}),
         )
         .call()
@@ -439,38 +364,6 @@ def main(params: Params):
             sanitize=True,
             **(params_dict.get("persist_patrol_traj") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
-    )
-
-    set_skip_map = (
-        set_bool_var.validate()
-        .set_task_instance_id("set_skip_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params_dict.get("set_skip_map") or {}))
-        .call()
-    )
-
-    skip_traj_map = (
-        maybe_skip_df.validate()
-        .set_task_instance_id("skip_traj_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(skip=set_skip_map, **(params_dict.get("skip_traj_map") or {}))
         .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
     )
 
@@ -505,10 +398,7 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(
-            base_maps=[{"layer_name": "TERRAIN", "opacity": 1}],
-            **(params_dict.get("base_map_defs") or {}),
-        )
+        .partial(**(params_dict.get("base_map_defs") or {}))
         .call()
     )
 
@@ -535,7 +425,7 @@ def main(params: Params):
             },
             **(params_dict.get("rename_traj_display_columns") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=skip_traj_map)
+        .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
     )
 
     patrol_traj_map_layers = (
@@ -557,7 +447,7 @@ def main(params: Params):
                 "width_units": "pixels",
                 "color_column": "patrol_traj_colormap",
             },
-            legend=None,
+            legend={"label_column": "station", "color_column": "patrol_traj_colormap"},
             tooltip_columns=["Start Time", "Duration (s)", "Speed (kph)"],
             **(params_dict.get("patrol_traj_map_layers") or {}),
         )
@@ -580,7 +470,7 @@ def main(params: Params):
             title=None,
             tile_layers=base_map_defs,
             north_arrow_style={"placement": "top-left"},
-            legend_style=None,
+            legend_style={"placement": "bottom-right"},
             static=False,
             max_zoom=20,
             **(params_dict.get("traj_ecomap") or {}),
@@ -621,7 +511,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=sql_query_traj,
+            df=customize_columns_internally,
             groupby_cols=["patrol_transport"],
             summary_params=[
                 {
@@ -664,7 +554,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=sql_query_traj,
+            df=customize_columns_internally,
             groupby_cols=["station"],
             summary_params=[
                 {
@@ -709,6 +599,7 @@ def main(params: Params):
         .partial(
             dataframe=station_summary,
             category="station",
+            layout_kwargs=None,
             bar_chart_configs=[
                 {
                     "label": "Total Distance (km)",
@@ -786,7 +677,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=sql_query_traj,
+            df=customize_columns_internally,
             groupby_cols=["patrol_mandate"],
             summary_params=[
                 {
@@ -870,7 +761,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=sql_query_traj,
+            df=customize_columns_internally,
             groupers=station_groupers,
             **(params_dict.get("split_by_station") or {}),
         )
@@ -1031,7 +922,7 @@ def main(params: Params):
         .partial(
             details=workflow_details,
             widgets=[],
-            groupers=groupers,
+            groupers=[{"index_name": "patrol_mandate"}],
             time_range=time_range,
             **(params_dict.get("patrol_dashboard") or {}),
         )

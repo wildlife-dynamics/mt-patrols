@@ -16,20 +16,7 @@ requirements:
 
 rjsf-overrides:
   properties:
-    Generate Maps.properties.set_skip_map.properties.var.description: >-
-      Skip generating maps for patrol trajectories. Recommended for large datasets to improve performance.
-    Generate Maps.properties.set_skip_map.properties.var.default: false
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
-    Process Patrol Observations.properties.groupers.properties.groupers.items.anyOf:
-      - {"$ref": "#/$defs/ValueGrouper"}
-      - {"$ref": "#/$defs/TemporalGrouper"}
-    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.title: "Category"
-    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.default: "patrol_id"
-    Process Patrol Observations.properties.set_patrol_traj_color_column.properties.var.description: >-
-      Select the patrol observation attribute to use for categorizing and coloring patrol trajectories on the generated maps.
-
-  $defs:
-    ValueGrouper.oneOf: []
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
@@ -65,6 +52,8 @@ workflow:
   - name: Load Patrol Observations
     id: patrol_obs
     task: ecoscope_workflows_ext_custom.tasks.io.load_df
+    partial:
+      deserialize_json: false
 
   - name: Extract Timezone Selection
     id: get_timezone
@@ -83,7 +72,7 @@ workflow:
   - title: Process Patrol Observations
     type: task-group
     description: >-
-      Process patrol observations by applying filters, column transformations, and SQL queries.
+      Process patrol observations by applying filters and column transformations.
     tasks:
       - name: Remove Column Prefix Extra
         id: drop_extra_prefix_obs
@@ -135,36 +124,14 @@ workflow:
           retain_columns: []
           raise_if_not_found: false
 
-      - name: Process Columns
-        id: customize_columns_traj
-        task: map_columns
-        partial:
-          df: ${{ workflow.customize_columns_internally.return }}
-          rename_columns: {}
-          retain_columns: []
-          raise_if_not_found: false
-
-      - name: Apply SQL Query
-        id: sql_query_traj
-        task: apply_sql_query
-        partial:
-          df: ${{ workflow.customize_columns_traj.return }}
-
-      - name: Group Data
-        id: groupers
-        task: set_groupers
-
-      - name: Style Trajectory By Category
-        id: set_patrol_traj_color_column
-        task: set_string_var
-
       - name: Add temporal index to Patrol Trajectories
         id: traj_add_temporal_index
         task: add_temporal_index
         partial:
-          df: ${{ workflow.sql_query_traj.return }}
+          df: ${{ workflow.customize_columns_internally.return }}
           time_col: "segment_start"
-          groupers: ${{ workflow.groupers.return }}
+          groupers:
+            - index_name: "patrol_mandate"
           cast_to_datetime: true
           format: "mixed"
 
@@ -174,7 +141,7 @@ workflow:
         partial:
           df: ${{ workflow.traj_add_temporal_index.return }}
           colormap: ["#FF9600", "#F23B0E", "#A100CB", "#F04564", "#03421A", "#3089FF", "#E26FFF", "#8C1700", "#002960", "#FFD000", "#B62879", "#680078", "#005A56", "#0056C7", "#331878", "#E76826"]
-          input_column_name: ${{ workflow.set_patrol_traj_color_column.return }}
+          input_column_name: "station"
           output_column_name: "patrol_traj_colormap"
 
   - name: Split Patrol Trajectories by Group
@@ -182,7 +149,8 @@ workflow:
     task: split_groups
     partial:
       df: ${{ workflow.traj_colormap.return }}
-      groupers: ${{ workflow.groupers.return }}
+      groupers:
+        - index_name: "patrol_mandate"
 
   - name: Persist Patrol Trajectories
     id: persist_patrol_traj
@@ -203,32 +171,15 @@ workflow:
     description: >-
       Generate maps to visualize patrol trajectories.
     tasks:
-      - name: Skip Map Generation
-        id: set_skip_map
-        task: set_bool_var
-
-      - name: ""
-        id: skip_traj_map
-        task: maybe_skip_df
-        partial:
-          skip: ${{ workflow.set_skip_map.return }}
-        mapvalues:
-          argnames: df
-          argvalues: ${{ workflow.split_patrol_traj_groups.return }}
-
       - name: "Set Patrol Map Title"
         id: set_patrol_map_title
         task: set_string_var
         partial:
           var: "Patrol Trajectories Map"
 
-      - name: " "
+      - name: Base Maps
         id: base_map_defs
         task: set_base_maps
-        partial:
-          base_maps:
-            - layer_name: "TERRAIN"
-              opacity: 1
 
       - name: Rename Trajectory Columns for Display
         id: rename_traj_display_columns
@@ -243,7 +194,7 @@ workflow:
             speed_kmhr: "Speed (kph)"
         mapvalues:
           argnames: df
-          argvalues: ${{ workflow.skip_traj_map.return }}
+          argvalues: ${{ workflow.split_patrol_traj_groups.return }}
 
       - name: Create Trajectory Map Layers
         id: patrol_traj_map_layers
@@ -258,7 +209,9 @@ workflow:
             get_width: 3
             width_units: "pixels"
             color_column: "patrol_traj_colormap"
-          legend: null
+          legend:
+            label_column: "station"
+            color_column: "patrol_traj_colormap"
           tooltip_columns: ["Start Time", "Duration (s)", "Speed (kph)"]
         mapvalues:
           argnames: geodataframe
@@ -272,7 +225,8 @@ workflow:
           tile_layers: ${{ workflow.base_map_defs.return }}
           north_arrow_style:
             placement: "top-left"
-          legend_style: null
+          legend_style:
+            placement: "bottom-right"
           static: false
           max_zoom: 20
         mapvalues:
@@ -298,7 +252,7 @@ workflow:
         id: transport_summary
         task: summarize_df
         partial:
-          df: ${{ workflow.sql_query_traj.return }}
+          df: ${{ workflow.customize_columns_internally.return }}
           groupby_cols: ["patrol_transport"]
           summary_params:
             - display_name: "Patrol Count"
@@ -321,7 +275,7 @@ workflow:
         id: station_summary
         task: summarize_df
         partial:
-          df: ${{ workflow.sql_query_traj.return }}
+          df: ${{ workflow.customize_columns_internally.return }}
           groupby_cols: ["station"]
           summary_params:
             - display_name: "Patrol Count"
@@ -346,6 +300,7 @@ workflow:
         partial:
           dataframe: ${{ workflow.station_summary.return }}
           category: "station"
+          layout_kwargs: null
           bar_chart_configs:
             - label: "Total Distance (km)"
               column: "Total Distance (km)"
@@ -390,7 +345,7 @@ workflow:
         id: mandate_summary
         task: summarize_df
         partial:
-          df: ${{ workflow.sql_query_traj.return }}
+          df: ${{ workflow.customize_columns_internally.return }}
           groupby_cols: ["patrol_mandate"]
           summary_params:
             - display_name: "Patrol Count"
@@ -438,7 +393,7 @@ workflow:
         id: split_by_station
         task: split_groups
         partial:
-          df: ${{ workflow.sql_query_traj.return }}
+          df: ${{ workflow.customize_columns_internally.return }}
           groupers: ${{ workflow.station_groupers.return }}
 
       - name: Summarize Rangers per Station
@@ -531,5 +486,6 @@ workflow:
     partial:
       details: ${{ workflow.workflow_details.return }}
       widgets: []
-      groupers: ${{ workflow.groupers.return }}
+      groupers:
+        - index_name: "patrol_mandate"
       time_range: ${{ workflow.time_range.return }}

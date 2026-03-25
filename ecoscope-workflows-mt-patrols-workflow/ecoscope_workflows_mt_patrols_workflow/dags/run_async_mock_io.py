@@ -12,7 +12,6 @@ import os
 import warnings  # 🧪
 
 from ecoscope_workflows_core.graph import DependsOn, Graph, Node
-from ecoscope_workflows_core.tasks.config import set_bool_var as set_bool_var
 from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
 from ecoscope_workflows_core.tasks.config import (
     set_workflow_details as set_workflow_details,
@@ -42,10 +41,6 @@ from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
 from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
-from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    apply_sql_query as apply_sql_query,
-)
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
@@ -90,31 +85,25 @@ def main(params: Params):
         "patrol_traj": ["filter_patrol_obs"],
         "drop_extra_prefix_traj": ["patrol_traj"],
         "customize_columns_internally": ["drop_extra_prefix_traj"],
-        "customize_columns_traj": ["customize_columns_internally"],
-        "sql_query_traj": ["customize_columns_traj"],
-        "groupers": [],
-        "set_patrol_traj_color_column": [],
-        "traj_add_temporal_index": ["sql_query_traj", "groupers"],
-        "traj_colormap": ["traj_add_temporal_index", "set_patrol_traj_color_column"],
-        "split_patrol_traj_groups": ["traj_colormap", "groupers"],
+        "traj_add_temporal_index": ["customize_columns_internally"],
+        "traj_colormap": ["traj_add_temporal_index"],
+        "split_patrol_traj_groups": ["traj_colormap"],
         "persist_patrol_traj": ["split_patrol_traj_groups"],
-        "set_skip_map": [],
-        "skip_traj_map": ["set_skip_map", "split_patrol_traj_groups"],
         "set_patrol_map_title": [],
         "base_map_defs": [],
-        "rename_traj_display_columns": ["skip_traj_map"],
+        "rename_traj_display_columns": ["split_patrol_traj_groups"],
         "patrol_traj_map_layers": ["rename_traj_display_columns"],
         "traj_ecomap": ["base_map_defs", "patrol_traj_map_layers"],
         "traj_ecomap_html_urls": ["traj_ecomap"],
-        "transport_summary": ["sql_query_traj"],
-        "station_summary": ["sql_query_traj"],
+        "transport_summary": ["customize_columns_internally"],
+        "station_summary": ["customize_columns_internally"],
         "patrol_bar_chart": ["station_summary"],
         "persist_bar_chart": ["patrol_bar_chart"],
         "persist_transport_summary": ["transport_summary"],
-        "mandate_summary": ["sql_query_traj"],
+        "mandate_summary": ["customize_columns_internally"],
         "persist_mandate_summary": ["mandate_summary"],
         "station_groupers": [],
-        "split_by_station": ["sql_query_traj", "station_groupers"],
+        "split_by_station": ["customize_columns_internally", "station_groupers"],
         "ranger_summary": ["split_by_station"],
         "persist_ranger_summary": ["ranger_summary"],
         "report_groupers": [],
@@ -127,7 +116,7 @@ def main(params: Params):
             "ranger_summary",
             "report_groupers",
         ],
-        "patrol_dashboard": ["workflow_details", "groupers", "time_range"],
+        "patrol_dashboard": ["workflow_details", "time_range"],
     }
 
     nodes = {
@@ -179,7 +168,10 @@ def main(params: Params):
                 unpack_depth=1,
             )
             .set_executor("lithops"),
-            partial=(params_dict.get("patrol_obs") or {}),
+            partial={
+                "deserialize_json": False,
+            }
+            | (params_dict.get("patrol_obs") or {}),
             method="call",
         ),
         "get_timezone": Node(
@@ -350,77 +342,6 @@ def main(params: Params):
             | (params_dict.get("customize_columns_internally") or {}),
             method="call",
         ),
-        "customize_columns_traj": Node(
-            async_task=map_columns.validate()
-            .set_task_instance_id("customize_columns_traj")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("customize_columns_internally"),
-                "raise_if_not_found": False,
-            }
-            | (params_dict.get("customize_columns_traj") or {}),
-            method="call",
-        ),
-        "sql_query_traj": Node(
-            async_task=apply_sql_query.validate()
-            .set_task_instance_id("sql_query_traj")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("customize_columns_traj"),
-            }
-            | (params_dict.get("sql_query_traj") or {}),
-            method="call",
-        ),
-        "groupers": Node(
-            async_task=set_groupers.validate()
-            .set_task_instance_id("groupers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("groupers") or {}),
-            method="call",
-        ),
-        "set_patrol_traj_color_column": Node(
-            async_task=set_string_var.validate()
-            .set_task_instance_id("set_patrol_traj_color_column")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("set_patrol_traj_color_column") or {}),
-            method="call",
-        ),
         "traj_add_temporal_index": Node(
             async_task=add_temporal_index.validate()
             .set_task_instance_id("traj_add_temporal_index")
@@ -435,9 +356,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "time_col": "segment_start",
-                "groupers": DependsOn("groupers"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                ],
                 "cast_to_datetime": True,
                 "format": "mixed",
             }
@@ -477,7 +402,7 @@ def main(params: Params):
                     "#331878",
                     "#E76826",
                 ],
-                "input_column_name": DependsOn("set_patrol_traj_color_column"),
+                "input_column_name": "station",
                 "output_column_name": "patrol_traj_colormap",
             }
             | (params_dict.get("traj_colormap") or {}),
@@ -498,7 +423,11 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("traj_colormap"),
-                "groupers": DependsOn("groupers"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                ],
             }
             | (params_dict.get("split_patrol_traj_groups") or {}),
             method="call",
@@ -521,45 +450,6 @@ def main(params: Params):
                 "sanitize": True,
             }
             | (params_dict.get("persist_patrol_traj") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_patrol_traj_groups"),
-            },
-        ),
-        "set_skip_map": Node(
-            async_task=set_bool_var.validate()
-            .set_task_instance_id("set_skip_map")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("set_skip_map") or {}),
-            method="call",
-        ),
-        "skip_traj_map": Node(
-            async_task=maybe_skip_df.validate()
-            .set_task_instance_id("skip_traj_map")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "skip": DependsOn("set_skip_map"),
-            }
-            | (params_dict.get("skip_traj_map") or {}),
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
@@ -598,15 +488,7 @@ def main(params: Params):
                 unpack_depth=1,
             )
             .set_executor("lithops"),
-            partial={
-                "base_maps": [
-                    {
-                        "layer_name": "TERRAIN",
-                        "opacity": 1,
-                    },
-                ],
-            }
-            | (params_dict.get("base_map_defs") or {}),
+            partial=(params_dict.get("base_map_defs") or {}),
             method="call",
         ),
         "rename_traj_display_columns": Node(
@@ -634,7 +516,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("skip_traj_map"),
+                "argvalues": DependsOn("split_patrol_traj_groups"),
             },
         ),
         "patrol_traj_map_layers": Node(
@@ -657,7 +539,10 @@ def main(params: Params):
                     "width_units": "pixels",
                     "color_column": "patrol_traj_colormap",
                 },
-                "legend": None,
+                "legend": {
+                    "label_column": "station",
+                    "color_column": "patrol_traj_colormap",
+                },
                 "tooltip_columns": [
                     "Start Time",
                     "Duration (s)",
@@ -690,7 +575,9 @@ def main(params: Params):
                 "north_arrow_style": {
                     "placement": "top-left",
                 },
-                "legend_style": None,
+                "legend_style": {
+                    "placement": "bottom-right",
+                },
                 "static": False,
                 "max_zoom": 20,
             }
@@ -739,7 +626,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "groupby_cols": [
                     "patrol_transport",
                 ],
@@ -784,7 +671,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "groupby_cols": [
                     "station",
                 ],
@@ -831,6 +718,7 @@ def main(params: Params):
             partial={
                 "dataframe": DependsOn("station_summary"),
                 "category": "station",
+                "layout_kwargs": None,
                 "bar_chart_configs": [
                     {
                         "label": "Total Distance (km)",
@@ -914,7 +802,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "groupby_cols": [
                     "patrol_mandate",
                 ],
@@ -1006,7 +894,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "groupers": DependsOn("station_groupers"),
             }
             | (params_dict.get("split_by_station") or {}),
@@ -1189,7 +1077,11 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "details": DependsOn("workflow_details"),
-                "groupers": DependsOn("groupers"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                ],
                 "time_range": DependsOn("time_range"),
             }
             | (params_dict.get("patrol_dashboard") or {}),

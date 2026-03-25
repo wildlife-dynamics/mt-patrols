@@ -13,12 +13,5 @@ base:
     #     name: "mara_triangle"
     patrol_obs:
       file_path: "/Users/yunwu/MEP/wt/outputs/mt_patrol_reloc_08aed9f.parquet"
-    groupers:
-      groupers: 
-        - index_name: "patrol_mandate"
-    set_patrol_traj_color_column:
-      var: "patrol_id"
-    set_skip_map:
-      var: false
     create_patrol_report:
       template_path: /Users/yunwu/MEP/wt/mt-patrols/resources/templates/mt_patrols_report_template.docx
