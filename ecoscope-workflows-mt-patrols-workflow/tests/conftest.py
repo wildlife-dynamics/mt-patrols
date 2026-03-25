@@ -38,9 +38,7 @@ SNAPSHOT_DIRNAME = ARTIFACTS.parent / "__results_snapshots__"
 SNAPSHOT_DIFF_OUTPUT_DIRNAME = ARTIFACTS.parent / "__diff_output__"
 TEST_CASES_YAML = ARTIFACTS.parent / "test-cases.yaml"
 MATCHSPEC_OVERRIDE = "ecoscope-workflows-mt-patrols-workflow"
-IO_TASKS_IMPORTABLE_REFERENCES = [
-    "ecoscope_workflows_ext_custom.tasks.io.get_patrol_observations_from_smart",
-]
+IO_TASKS_IMPORTABLE_REFERENCES = []
 
 yaml = ruamel.yaml.YAML(typ="safe")
 

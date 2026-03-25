@@ -42,9 +42,9 @@ workflow:
     id: workflow_details
     task: set_workflow_details
 
-  - name: Data Source
-    id: smart_client_name
-    task: set_smart_connection
+  # - name: Data Source
+  #   id: smart_client_name
+  #   task: set_smart_connection
 
   - name: Time Range
     id: time_range
@@ -52,12 +52,16 @@ workflow:
     partial:
       time_format: '%d %b %Y %H:%M:%S %Z'
 
-  - name: Get Patrol Observations
+  # - name: Get Patrol Observations
+  #   id: patrol_obs
+  #   task: ecoscope_workflows_ext_custom.tasks.io.get_patrol_observations_from_smart
+  #   partial:
+  #     client: ${{ workflow.smart_client_name.return }}
+  #     time_range: ${{ workflow.time_range.return }}
+
+  - name: Load Patrol Observations
     id: patrol_obs
-    task: ecoscope_workflows_ext_custom.tasks.io.get_patrol_observations_from_smart
-    partial:
-      client: ${{ workflow.smart_client_name.return }}
-      time_range: ${{ workflow.time_range.return }}
+    task: ecoscope_workflows_ext_custom.tasks.io.load_df
 
   - name: Extract Timezone Selection
     id: get_timezone
