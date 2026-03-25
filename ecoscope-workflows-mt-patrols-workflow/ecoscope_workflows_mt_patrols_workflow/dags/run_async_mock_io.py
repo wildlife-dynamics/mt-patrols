@@ -107,9 +107,12 @@ def main(params: Params):
         "traj_ecomap": ["base_map_defs", "patrol_traj_map_layers"],
         "traj_ecomap_html_urls": ["traj_ecomap"],
         "transport_summary": ["sql_query_traj"],
-        "patrol_bar_chart": ["transport_summary"],
+        "station_summary": ["sql_query_traj"],
+        "patrol_bar_chart": ["station_summary"],
         "persist_bar_chart": ["patrol_bar_chart"],
         "persist_transport_summary": ["transport_summary"],
+        "mandate_summary": ["sql_query_traj"],
+        "persist_mandate_summary": ["mandate_summary"],
         "station_groupers": [],
         "split_by_station": ["sql_query_traj", "station_groupers"],
         "ranger_summary": ["split_by_station"],
@@ -120,6 +123,7 @@ def main(params: Params):
             "traj_ecomap_html_urls",
             "persist_bar_chart",
             "transport_summary",
+            "mandate_summary",
             "ranger_summary",
             "report_groupers",
         ],
@@ -765,6 +769,50 @@ def main(params: Params):
             | (params_dict.get("transport_summary") or {}),
             method="call",
         ),
+        "station_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("station_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("sql_query_traj"),
+                "groupby_cols": [
+                    "station",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "# Patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Hours",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("station_summary") or {}),
+            method="call",
+        ),
         "patrol_bar_chart": Node(
             async_task=draw_bar_chart.validate()
             .set_task_instance_id("patrol_bar_chart")
@@ -779,8 +827,8 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "dataframe": DependsOn("transport_summary"),
-                "category": "patrol_transport",
+                "dataframe": DependsOn("station_summary"),
+                "category": "station",
                 "bar_chart_configs": [
                     {
                         "label": "Total Hours",
@@ -846,6 +894,74 @@ def main(params: Params):
                 "sanitize": True,
             }
             | (params_dict.get("persist_transport_summary") or {}),
+            method="call",
+        ),
+        "mandate_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("mandate_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("sql_query_traj"),
+                "groupby_cols": [
+                    "patrol_mandate",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "# Patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Hours",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("mandate_summary") or {}),
+            method="call",
+        ),
+        "persist_mandate_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_mandate_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("mandate_summary"),
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "mandate_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_mandate_summary") or {}),
             method="call",
         ),
         "station_groupers": Node(
@@ -1031,6 +1147,11 @@ def main(params: Params):
                             "item_type": "table",
                             "key": "transport_stats",
                             "value": DependsOn("transport_summary"),
+                        },
+                        {
+                            "item_type": "table",
+                            "key": "mandate_stats",
+                            "value": DependsOn("mandate_summary"),
                         },
                         {
                             "item_type": "table",

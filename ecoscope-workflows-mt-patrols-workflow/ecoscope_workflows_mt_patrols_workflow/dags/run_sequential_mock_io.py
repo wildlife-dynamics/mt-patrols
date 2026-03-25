@@ -661,6 +661,48 @@ def main(params: Params):
         .call()
     )
 
+    station_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("station_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=sql_query_traj,
+            groupby_cols=["station"],
+            summary_params=[
+                {
+                    "display_name": "# Patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Hours",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("station_summary") or {}),
+        )
+        .call()
+    )
+
     patrol_bar_chart = (
         draw_bar_chart.validate()
         .set_task_instance_id("patrol_bar_chart")
@@ -674,8 +716,8 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            dataframe=transport_summary,
-            category="patrol_transport",
+            dataframe=station_summary,
+            category="station",
             bar_chart_configs=[
                 {
                     "label": "Total Hours",
@@ -734,6 +776,70 @@ def main(params: Params):
             filetypes=["csv"],
             sanitize=True,
             **(params_dict.get("persist_transport_summary") or {}),
+        )
+        .call()
+    )
+
+    mandate_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("mandate_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=sql_query_traj,
+            groupby_cols=["patrol_mandate"],
+            summary_params=[
+                {
+                    "display_name": "# Patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Hours",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("mandate_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_mandate_summary = (
+        persist_df_wrapper.validate()
+        .set_task_instance_id("persist_mandate_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=mandate_summary,
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="mandate_summary",
+            filetypes=["csv"],
+            sanitize=True,
+            **(params_dict.get("persist_mandate_summary") or {}),
         )
         .call()
     )
@@ -893,6 +999,11 @@ def main(params: Params):
                         "item_type": "table",
                         "key": "transport_stats",
                         "value": transport_summary,
+                    },
+                    {
+                        "item_type": "table",
+                        "key": "mandate_stats",
+                        "value": mandate_summary,
                     },
                     {
                         "item_type": "table",

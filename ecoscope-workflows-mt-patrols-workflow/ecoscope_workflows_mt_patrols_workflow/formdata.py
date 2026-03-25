@@ -251,7 +251,7 @@ class PatrolBarChart(BaseModel):
 
 class TransportSummary(BaseModel):
     patrol_bar_chart: PatrolBarChart | None = Field(
-        None, title="Draw Transport Bar Chart"
+        None, title="Draw Station Bar Chart"
     )
 
 

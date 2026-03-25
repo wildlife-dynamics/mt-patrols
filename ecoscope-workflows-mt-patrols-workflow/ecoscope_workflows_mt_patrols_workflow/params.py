@@ -252,7 +252,7 @@ class Params(BaseModel):
     )
     set_skip_map: SetSkipMap | None = Field(None, title="Skip Map Generation")
     patrol_bar_chart: PatrolBarChart | None = Field(
-        None, title="Draw Transport Bar Chart"
+        None, title="Draw Station Bar Chart"
     )
     create_patrol_report: CreatePatrolReport | None = Field(
         None, title="Create Patrol Report"

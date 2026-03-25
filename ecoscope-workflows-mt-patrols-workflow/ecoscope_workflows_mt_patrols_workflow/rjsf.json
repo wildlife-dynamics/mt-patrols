@@ -275,7 +275,7 @@
           },
           "required": [],
           "type": "object",
-          "title": "Draw Transport Bar Chart"
+          "title": "Draw Station Bar Chart"
         }
       }
     },
