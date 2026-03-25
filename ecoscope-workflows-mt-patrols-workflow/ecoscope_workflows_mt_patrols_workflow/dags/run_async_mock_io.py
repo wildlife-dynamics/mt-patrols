@@ -745,7 +745,7 @@ def main(params: Params):
                 ],
                 "summary_params": [
                     {
-                        "display_name": "# Patrols",
+                        "display_name": "Patrol Count",
                         "aggregator": "nunique",
                         "column": "patrol_id",
                     },
@@ -757,7 +757,7 @@ def main(params: Params):
                         "new_unit": "km",
                     },
                     {
-                        "display_name": "Total Hours",
+                        "display_name": "Total Duration (hours)",
                         "aggregator": "sum",
                         "column": "timespan_seconds",
                         "original_unit": "s",
@@ -790,7 +790,7 @@ def main(params: Params):
                 ],
                 "summary_params": [
                     {
-                        "display_name": "# Patrols",
+                        "display_name": "Patrol Count",
                         "aggregator": "nunique",
                         "column": "patrol_id",
                     },
@@ -802,7 +802,7 @@ def main(params: Params):
                         "new_unit": "km",
                     },
                     {
-                        "display_name": "Total Hours",
+                        "display_name": "Total Duration (hours)",
                         "aggregator": "sum",
                         "column": "timespan_seconds",
                         "original_unit": "s",
@@ -841,8 +841,8 @@ def main(params: Params):
                         },
                     },
                     {
-                        "label": "Total Hours",
-                        "column": "Total Hours",
+                        "label": "Total Duration (hours)",
+                        "column": "Total Duration (hours)",
                         "agg_func": "sum",
                         "style": {
                             "marker_color": "#31688e",
@@ -918,7 +918,7 @@ def main(params: Params):
                 ],
                 "summary_params": [
                     {
-                        "display_name": "# Patrols",
+                        "display_name": "Patrol Count",
                         "aggregator": "nunique",
                         "column": "patrol_id",
                     },
@@ -930,7 +930,7 @@ def main(params: Params):
                         "new_unit": "km",
                     },
                     {
-                        "display_name": "Total Hours",
+                        "display_name": "Total Duration (hours)",
                         "aggregator": "sum",
                         "column": "timespan_seconds",
                         "original_unit": "s",
@@ -1029,7 +1029,7 @@ def main(params: Params):
                 ],
                 "summary_params": [
                     {
-                        "display_name": "# Patrols",
+                        "display_name": "Patrol Count",
                         "aggregator": "nunique",
                         "column": "patrol_id",
                     },
@@ -1041,7 +1041,7 @@ def main(params: Params):
                         "new_unit": "km",
                     },
                     {
-                        "display_name": "Total Hours",
+                        "display_name": "Total Duration (hours)",
                         "aggregator": "sum",
                         "column": "timespan_seconds",
                         "original_unit": "s",

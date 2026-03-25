@@ -970,7 +970,7 @@ transport_summary = (
         groupby_cols=["patrol_transport"],
         summary_params=[
             {
-                "display_name": "# Patrols",
+                "display_name": "Patrol Count",
                 "aggregator": "nunique",
                 "column": "patrol_id",
             },
@@ -982,7 +982,7 @@ transport_summary = (
                 "new_unit": "km",
             },
             {
-                "display_name": "Total Hours",
+                "display_name": "Total Duration (hours)",
                 "aggregator": "sum",
                 "column": "timespan_seconds",
                 "original_unit": "s",
@@ -1025,7 +1025,7 @@ station_summary = (
         groupby_cols=["station"],
         summary_params=[
             {
-                "display_name": "# Patrols",
+                "display_name": "Patrol Count",
                 "aggregator": "nunique",
                 "column": "patrol_id",
             },
@@ -1037,7 +1037,7 @@ station_summary = (
                 "new_unit": "km",
             },
             {
-                "display_name": "Total Hours",
+                "display_name": "Total Duration (hours)",
                 "aggregator": "sum",
                 "column": "timespan_seconds",
                 "original_unit": "s",
@@ -1089,8 +1089,8 @@ patrol_bar_chart = (
                 "style": {"marker_color": "#35b779"},
             },
             {
-                "label": "Total Hours",
-                "column": "Total Hours",
+                "label": "Total Duration (hours)",
+                "column": "Total Duration (hours)",
                 "agg_func": "sum",
                 "style": {"marker_color": "#31688e"},
             },
@@ -1200,7 +1200,7 @@ mandate_summary = (
         groupby_cols=["patrol_mandate"],
         summary_params=[
             {
-                "display_name": "# Patrols",
+                "display_name": "Patrol Count",
                 "aggregator": "nunique",
                 "column": "patrol_id",
             },
@@ -1212,7 +1212,7 @@ mandate_summary = (
                 "new_unit": "km",
             },
             {
-                "display_name": "Total Hours",
+                "display_name": "Total Duration (hours)",
                 "aggregator": "sum",
                 "column": "timespan_seconds",
                 "original_unit": "s",
@@ -1346,7 +1346,7 @@ ranger_summary = (
         groupby_cols=["patrol_leader_name"],
         summary_params=[
             {
-                "display_name": "# Patrols",
+                "display_name": "Patrol Count",
                 "aggregator": "nunique",
                 "column": "patrol_id",
             },
@@ -1358,7 +1358,7 @@ ranger_summary = (
                 "new_unit": "km",
             },
             {
-                "display_name": "Total Hours",
+                "display_name": "Total Duration (hours)",
                 "aggregator": "sum",
                 "column": "timespan_seconds",
                 "original_unit": "s",

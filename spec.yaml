@@ -298,7 +298,7 @@ workflow:
           df: ${{ workflow.sql_query_traj.return }}
           groupby_cols: ["patrol_transport"]
           summary_params:
-            - display_name: "# Patrols"
+            - display_name: "Patrol Count"
               aggregator: nunique
               column: patrol_id
             - display_name: "Total Distance (km)"
@@ -306,7 +306,7 @@ workflow:
               column: dist_meters
               original_unit: "m"
               new_unit: "km"
-            - display_name: "Total Hours"
+            - display_name: "Total Duration (hours)"
               aggregator: sum
               column: timespan_seconds
               original_unit: "s"
@@ -321,7 +321,7 @@ workflow:
           df: ${{ workflow.sql_query_traj.return }}
           groupby_cols: ["station"]
           summary_params:
-            - display_name: "# Patrols"
+            - display_name: "Patrol Count"
               aggregator: nunique
               column: patrol_id
             - display_name: "Total Distance (km)"
@@ -329,7 +329,7 @@ workflow:
               column: dist_meters
               original_unit: "m"
               new_unit: "km"
-            - display_name: "Total Hours"
+            - display_name: "Total Duration (hours)"
               aggregator: sum
               column: timespan_seconds
               original_unit: "s"
@@ -349,8 +349,8 @@ workflow:
               agg_func: "sum"
               style:
                 marker_color: "#35b779"
-            - label: "Total Hours"
-              column: "Total Hours"
+            - label: "Total Duration (hours)"
+              column: "Total Duration (hours)"
               agg_func: "sum"
               style:
                 marker_color: "#31688e"
@@ -388,7 +388,7 @@ workflow:
           df: ${{ workflow.sql_query_traj.return }}
           groupby_cols: ["patrol_mandate"]
           summary_params:
-            - display_name: "# Patrols"
+            - display_name: "Patrol Count"
               aggregator: nunique
               column: patrol_id
             - display_name: "Total Distance (km)"
@@ -396,7 +396,7 @@ workflow:
               column: dist_meters
               original_unit: "m"
               new_unit: "km"
-            - display_name: "Total Hours"
+            - display_name: "Total Duration (hours)"
               aggregator: sum
               column: timespan_seconds
               original_unit: "s"
@@ -442,7 +442,7 @@ workflow:
         partial:
           groupby_cols: ["patrol_leader_name"]
           summary_params:
-            - display_name: "# Patrols"
+            - display_name: "Patrol Count"
               aggregator: nunique
               column: patrol_id
             - display_name: "Total Distance (km)"
@@ -450,7 +450,7 @@ workflow:
               column: dist_meters
               original_unit: "m"
               new_unit: "km"
-            - display_name: "Total Hours"
+            - display_name: "Total Duration (hours)"
               aggregator: sum
               column: timespan_seconds
               original_unit: "s"
