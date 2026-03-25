@@ -17,6 +17,9 @@ requirements:
 rjsf-overrides:
   properties:
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
+    Generate Maps.properties.base_map_defs.properties.base_maps.default:
+      - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+        opacity: 1
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
