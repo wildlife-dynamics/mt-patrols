@@ -13,5 +13,9 @@ base:
     #     name: "mara_triangle"
     patrol_obs:
       file_path: "/Users/yunwu/MEP/wt/outputs/mt_patrol_reloc_08aed9f.parquet"
+    base_map_defs:
+      base_maps:
+        - layer_name: "TOPO"
+          opacity: 1
     create_patrol_report:
       template_path: /Users/yunwu/MEP/wt/mt-patrols/resources/templates/mt_patrols_report_template.docx
