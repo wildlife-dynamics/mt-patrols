@@ -347,11 +347,13 @@ workflow:
             - label: "Total Distance (km)"
               column: "Total Distance (km)"
               agg_func: "sum"
+              show_label: true
               style:
                 marker_color: "#35b779"
             - label: "Total Duration (hours)"
               column: "Total Duration (hours)"
               agg_func: "sum"
+              show_label: true
               style:
                 marker_color: "#31688e"
 
