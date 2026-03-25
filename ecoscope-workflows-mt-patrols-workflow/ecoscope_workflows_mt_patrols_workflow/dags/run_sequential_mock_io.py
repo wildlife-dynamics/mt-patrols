@@ -705,11 +705,17 @@ def main(params: Params):
             dataframe=transport_summary,
             category="patrol_transport",
             bar_chart_configs=[
-                {"label": "Total Hours", "column": "Total Hours", "agg_func": "sum"},
+                {
+                    "label": "Total Hours",
+                    "column": "Total Hours",
+                    "agg_func": "sum",
+                    "style": {"marker_color": "#31688e"},
+                },
                 {
                     "label": "Total Distance (km)",
                     "column": "Total Distance (km)",
                     "agg_func": "sum",
+                    "style": {"marker_color": "#35b779"},
                 },
             ],
             **(params_dict.get("patrol_bar_chart") or {}),
@@ -894,7 +900,6 @@ def main(params: Params):
         .partial(
             context={
                 "items": [
-                    {"item_type": "text", "key": "title", "value": "MT Patrols Report"},
                     {
                         "item_type": "timerange",
                         "key": "report_date",
