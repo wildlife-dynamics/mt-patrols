@@ -42,6 +42,13 @@ from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
 from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
+from ecoscope_workflows_ext_custom.tasks.results import (
+    create_path_layer as create_path_layer,
+)
+from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
+from ecoscope_workflows_ext_custom.tasks.results import (
+    set_base_maps_pydeck as set_base_maps_pydeck,
+)
 from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     apply_sql_query as apply_sql_query,
@@ -54,13 +61,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
-    create_polyline_layer as create_polyline_layer,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.results import (
     draw_bar_chart as draw_bar_chart,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap as draw_ecomap
-from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps as set_base_maps
 from ecoscope_workflows_ext_ecoscope.tasks.skip import (
     all_geometry_are_none as all_geometry_are_none,
 )
@@ -100,7 +102,6 @@ def main(params: Params):
         "persist_patrol_traj": ["split_patrol_traj_groups"],
         "set_skip_map": [],
         "skip_traj_map": ["set_skip_map", "split_patrol_traj_groups"],
-        "set_patrol_map_title": [],
         "base_map_defs": [],
         "rename_traj_display_columns": ["skip_traj_map"],
         "patrol_traj_map_layers": ["rename_traj_display_columns"],
@@ -566,27 +567,8 @@ def main(params: Params):
                 "argvalues": DependsOn("split_patrol_traj_groups"),
             },
         ),
-        "set_patrol_map_title": Node(
-            async_task=set_string_var.validate()
-            .set_task_instance_id("set_patrol_map_title")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "var": "Patrol Trajectories Map",
-            }
-            | (params_dict.get("set_patrol_map_title") or {}),
-            method="call",
-        ),
         "base_map_defs": Node(
-            async_task=set_base_maps.validate()
+            async_task=set_base_maps_pydeck.validate()
             .set_task_instance_id("base_map_defs")
             .handle_errors()
             .with_tracing()
@@ -601,7 +583,7 @@ def main(params: Params):
             partial={
                 "base_maps": [
                     {
-                        "layer_name": "TERRAIN",
+                        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
                         "opacity": 1,
                     },
                 ],
@@ -638,7 +620,7 @@ def main(params: Params):
             },
         ),
         "patrol_traj_map_layers": Node(
-            async_task=create_polyline_layer.validate()
+            async_task=create_path_layer.validate()
             .set_task_instance_id("patrol_traj_map_layers")
             .handle_errors()
             .with_tracing()
@@ -655,14 +637,9 @@ def main(params: Params):
                 "layer_style": {
                     "get_width": 3,
                     "width_units": "pixels",
-                    "color_column": "patrol_traj_colormap",
+                    "get_color": "patrol_traj_colormap",
                 },
                 "legend": None,
-                "tooltip_columns": [
-                    "Start Time",
-                    "Duration (s)",
-                    "Speed (kph)",
-                ],
             }
             | (params_dict.get("patrol_traj_map_layers") or {}),
             method="mapvalues",
@@ -672,7 +649,7 @@ def main(params: Params):
             },
         ),
         "traj_ecomap": Node(
-            async_task=draw_ecomap.validate()
+            async_task=draw_map.validate()
             .set_task_instance_id("traj_ecomap")
             .handle_errors()
             .with_tracing()
@@ -687,9 +664,6 @@ def main(params: Params):
             partial={
                 "title": None,
                 "tile_layers": DependsOn("base_map_defs"),
-                "north_arrow_style": {
-                    "placement": "top-left",
-                },
                 "legend_style": None,
                 "static": False,
                 "max_zoom": 20,
