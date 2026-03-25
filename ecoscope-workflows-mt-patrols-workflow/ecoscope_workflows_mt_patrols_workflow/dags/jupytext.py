@@ -997,7 +997,61 @@ transport_summary = (
 
 
 # %% [markdown]
-# ## Draw Transport Bar Chart
+# ## Summarize by Station
+
+# %%
+# parameters
+
+station_summary_params = dict()
+
+# %%
+# call the task
+
+
+station_summary = (
+    summarize_df.set_task_instance_id("station_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=sql_query_traj,
+        groupby_cols=["station"],
+        summary_params=[
+            {
+                "display_name": "# Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Total Hours",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "Total Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+        ],
+        reset_index=True,
+        **station_summary_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Draw Station Bar Chart
 
 # %%
 # parameters
@@ -1023,8 +1077,8 @@ patrol_bar_chart = (
         unpack_depth=1,
     )
     .partial(
-        dataframe=transport_summary,
-        category="patrol_transport",
+        dataframe=station_summary,
+        category="station",
         bar_chart_configs=[
             {
                 "label": "Total Hours",
@@ -1111,6 +1165,96 @@ persist_transport_summary = (
         filetypes=["csv"],
         sanitize=True,
         **persist_transport_summary_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Summarize by Mandate
+
+# %%
+# parameters
+
+mandate_summary_params = dict()
+
+# %%
+# call the task
+
+
+mandate_summary = (
+    summarize_df.set_task_instance_id("mandate_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=sql_query_traj,
+        groupby_cols=["patrol_mandate"],
+        summary_params=[
+            {
+                "display_name": "# Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Total Hours",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "Total Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+        ],
+        reset_index=True,
+        **mandate_summary_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Persist Mandate Summary
+
+# %%
+# parameters
+
+persist_mandate_summary_params = dict(
+    filename=...,
+)
+
+# %%
+# call the task
+
+
+persist_mandate_summary = (
+    persist_df_wrapper.set_task_instance_id("persist_mandate_summary")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            never,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=mandate_summary,
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filename_prefix="mandate_summary",
+        filetypes=["csv"],
+        sanitize=True,
+        **persist_mandate_summary_params,
     )
     .call()
 )
@@ -1335,6 +1479,11 @@ create_patrol_report = (
                     "item_type": "table",
                     "key": "transport_stats",
                     "value": transport_summary,
+                },
+                {
+                    "item_type": "table",
+                    "key": "mandate_stats",
+                    "value": mandate_summary,
                 },
                 {"item_type": "table", "key": "ranger_tables", "value": ranger_summary},
             ]

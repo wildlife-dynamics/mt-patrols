@@ -313,12 +313,34 @@ workflow:
               new_unit: "km"
           reset_index: true
 
-      - name: Draw Transport Bar Chart
+      - name: Summarize by Station
+        id: station_summary
+        task: summarize_df
+        partial:
+          df: ${{ workflow.sql_query_traj.return }}
+          groupby_cols: ["station"]
+          summary_params:
+            - display_name: "# Patrols"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Hours"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+          reset_index: true
+
+      - name: Draw Station Bar Chart
         id: patrol_bar_chart
         task: draw_bar_chart
         partial:
-          dataframe: ${{ workflow.transport_summary.return }}
-          category: "patrol_transport"
+          dataframe: ${{ workflow.station_summary.return }}
+          category: "station"
           bar_chart_configs:
             - label: "Total Hours"
               column: "Total Hours"
@@ -346,6 +368,46 @@ workflow:
           df: ${{ workflow.transport_summary.return }}
           root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
           filename_prefix: "transport_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        skipif:
+          conditions:
+            - never
+
+  - title: Mandate Summary
+    type: task-group
+    description: >-
+      Summarize patrol data by mandate type.
+    tasks:
+      - name: Summarize by Mandate
+        id: mandate_summary
+        task: summarize_df
+        partial:
+          df: ${{ workflow.sql_query_traj.return }}
+          groupby_cols: ["patrol_mandate"]
+          summary_params:
+            - display_name: "# Patrols"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Hours"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+          reset_index: true
+
+      - name: Persist Mandate Summary
+        id: persist_mandate_summary
+        task: persist_df_wrapper
+        partial:
+          df: ${{ workflow.mandate_summary.return }}
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "mandate_summary"
           filetypes: ["csv"]
           sanitize: true
         skipif:
@@ -440,6 +502,9 @@ workflow:
           - item_type: table
             key: transport_stats
             value: ${{ workflow.transport_summary.return }}
+          - item_type: table
+            key: mandate_stats
+            value: ${{ workflow.mandate_summary.return }}
           - item_type: table
             key: ranger_tables
             value: ${{ workflow.ranger_summary.return }}
