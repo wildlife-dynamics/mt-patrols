@@ -250,6 +250,31 @@
           ],
           "type": "object",
           "title": "Skip Map Generation"
+        },
+        "traj_ecomap": {
+          "additionalProperties": false,
+          "properties": {
+            "view_state": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ViewState"
+                }
+              ],
+              "default": {
+                "longitude": 0,
+                "latitude": 0,
+                "zoom": 0,
+                "pitch": 0,
+                "bearing": 0
+              },
+              "title": "View State",
+              "description": "Manually set the view state of the map.",
+              "ecoscope:advanced": true
+            }
+          },
+          "type": "object",
+          "required": [],
+          "title": "Draw Ecomaps"
         }
       }
     },
@@ -447,6 +472,52 @@
       "type": "object",
       "oneOf": []
     },
+    "ViewState": {
+      "description": "Represents a deck.gl view state",
+      "properties": {
+        "longitude": {
+          "default": 0,
+          "ecoscope:advanced": true,
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Longitude",
+          "type": "number"
+        },
+        "latitude": {
+          "default": 0,
+          "ecoscope:advanced": true,
+          "maximum": 90.0,
+          "minimum": -90.0,
+          "title": "Latitude",
+          "type": "number"
+        },
+        "zoom": {
+          "default": 0,
+          "ecoscope:advanced": true,
+          "maximum": 20.0,
+          "minimum": 0.0,
+          "title": "Zoom",
+          "type": "number"
+        },
+        "pitch": {
+          "default": 0,
+          "ecoscope:advanced": true,
+          "maximum": 60.0,
+          "minimum": 0.0,
+          "title": "Pitch",
+          "type": "number"
+        },
+        "bearing": {
+          "default": 0,
+          "ecoscope:advanced": true,
+          "maximum": 360.0,
+          "title": "Bearing",
+          "type": "number"
+        }
+      },
+      "title": "ViewState",
+      "type": "object"
+    },
     "AxisStyle": {
       "properties": {
         "title": {
@@ -603,6 +674,12 @@
           }
         }
       }
+    },
+    "Generate Maps": {
+      "ui:order": [
+        "set_skip_map",
+        "traj_ecomap"
+      ]
     },
     "ui:order": [
       "workflow_details",
