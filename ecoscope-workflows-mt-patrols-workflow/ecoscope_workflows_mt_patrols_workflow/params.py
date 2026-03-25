@@ -154,6 +154,14 @@ class ValueGrouper(BaseModel):
     index_name: str = Field(..., title="Category")
 
 
+class ViewState(BaseModel):
+    longitude: confloat(ge=-180.0, le=180.0) | None = Field(0, title="Longitude")
+    latitude: confloat(ge=-90.0, le=90.0) | None = Field(0, title="Latitude")
+    zoom: confloat(ge=0.0, le=20.0) | None = Field(0, title="Zoom")
+    pitch: confloat(ge=0.0, le=60.0) | None = Field(0, title="Pitch")
+    bearing: confloat(le=360.0) | None = Field(0, title="Bearing")
+
+
 class AxisStyle(BaseModel):
     title: str | None = Field(None, title="Title")
     range: list[float] | None = Field(None, title="Range")
@@ -214,6 +222,19 @@ class Groupers(BaseModel):
     )
 
 
+class TrajEcomap(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    view_state: ViewState | None = Field(
+        default_factory=lambda: ViewState.model_validate(
+            {"longitude": 0, "latitude": 0, "zoom": 0, "pitch": 0, "bearing": 0}
+        ),
+        description="Manually set the view state of the map.",
+        title="View State",
+    )
+
+
 class PatrolBarChart(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -251,6 +272,7 @@ class Params(BaseModel):
         None, title="Persist Patrol Trajectories"
     )
     set_skip_map: SetSkipMap | None = Field(None, title="Skip Map Generation")
+    traj_ecomap: TrajEcomap | None = Field(None, title="Draw Ecomaps")
     patrol_bar_chart: PatrolBarChart | None = Field(
         None, title="Draw Station Bar Chart"
     )
