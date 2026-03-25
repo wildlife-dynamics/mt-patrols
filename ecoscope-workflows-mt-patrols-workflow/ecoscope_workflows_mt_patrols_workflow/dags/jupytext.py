@@ -1068,11 +1068,17 @@ patrol_bar_chart = (
         dataframe=transport_summary,
         category="patrol_transport",
         bar_chart_configs=[
-            {"label": "Total Hours", "column": "Total Hours", "agg_func": "sum"},
+            {
+                "label": "Total Hours",
+                "column": "Total Hours",
+                "agg_func": "sum",
+                "style": {"marker_color": "#31688e"},
+            },
             {
                 "label": "Total Distance (km)",
                 "column": "Total Distance (km)",
                 "agg_func": "sum",
+                "style": {"marker_color": "#35b779"},
             },
         ],
         **patrol_bar_chart_params,
@@ -1354,7 +1360,6 @@ create_patrol_report = (
     .partial(
         context={
             "items": [
-                {"item_type": "text", "key": "title", "value": "MT Patrols Report"},
                 {"item_type": "timerange", "key": "report_date", "value": time_range},
                 {
                     "item_type": "image",

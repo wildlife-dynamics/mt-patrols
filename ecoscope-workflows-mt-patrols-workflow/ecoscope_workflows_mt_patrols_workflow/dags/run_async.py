@@ -801,11 +801,17 @@ def main(params: Params):
                         "label": "Total Hours",
                         "column": "Total Hours",
                         "agg_func": "sum",
+                        "style": {
+                            "marker_color": "#31688e",
+                        },
                     },
                     {
                         "label": "Total Distance (km)",
                         "column": "Total Distance (km)",
                         "agg_func": "sum",
+                        "style": {
+                            "marker_color": "#35b779",
+                        },
                     },
                 ],
             }
@@ -1015,11 +1021,6 @@ def main(params: Params):
             partial={
                 "context": {
                     "items": [
-                        {
-                            "item_type": "text",
-                            "key": "title",
-                            "value": "MT Patrols Report",
-                        },
                         {
                             "item_type": "timerange",
                             "key": "report_date",
