@@ -836,6 +836,7 @@ def main(params: Params):
                         "label": "Total Distance (km)",
                         "column": "Total Distance (km)",
                         "agg_func": "sum",
+                        "show_label": True,
                         "style": {
                             "marker_color": "#35b779",
                         },
@@ -844,6 +845,7 @@ def main(params: Params):
                         "label": "Total Duration (hours)",
                         "column": "Total Duration (hours)",
                         "agg_func": "sum",
+                        "show_label": True,
                         "style": {
                             "marker_color": "#31688e",
                         },
