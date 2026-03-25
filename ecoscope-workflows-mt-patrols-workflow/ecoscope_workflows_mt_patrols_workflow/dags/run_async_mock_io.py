@@ -765,7 +765,7 @@ def main(params: Params):
                         "decimal_places": 1,
                     },
                 ],
-                "reset_index": True,
+                "reset_index": False,
             }
             | (params_dict.get("transport_summary") or {}),
             method="call",
@@ -938,7 +938,7 @@ def main(params: Params):
                         "decimal_places": 1,
                     },
                 ],
-                "reset_index": True,
+                "reset_index": False,
             }
             | (params_dict.get("mandate_summary") or {}),
             method="call",
@@ -1049,7 +1049,7 @@ def main(params: Params):
                         "decimal_places": 1,
                     },
                 ],
-                "reset_index": True,
+                "reset_index": False,
             }
             | (params_dict.get("ranger_summary") or {}),
             method="mapvalues",
