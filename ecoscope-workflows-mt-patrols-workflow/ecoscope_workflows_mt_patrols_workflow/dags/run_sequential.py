@@ -903,13 +903,19 @@ def main(params: Params):
                         "item_type": "image",
                         "key": "patrol_maps",
                         "value": traj_ecomap_html_urls,
-                        "screenshot_config": {"wait_for_timeout": 0},
+                        "screenshot_config": {
+                            "wait_for_timeout": 0,
+                            "max_concurrent_pages": 3,
+                        },
                     },
                     {
                         "item_type": "image",
                         "key": "bar_chart",
                         "value": persist_bar_chart,
-                        "screenshot_config": {"wait_for_timeout": 0},
+                        "screenshot_config": {
+                            "wait_for_timeout": 0,
+                            "max_concurrent_pages": 3,
+                        },
                     },
                     {
                         "item_type": "table",
