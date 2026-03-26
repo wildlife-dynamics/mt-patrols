@@ -26,6 +26,7 @@ rjsf-overrides:
     Generate Maps.properties.base_map_defs.properties.base_maps.default:
       - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
         opacity: 1
+    create_patrol_report.properties.template_path.default: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx"
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
@@ -471,12 +472,15 @@ workflow:
             key: patrol_maps
             value: ${{ workflow.traj_ecomap_html_urls.return }}
             screenshot_config:
-              wait_for_timeout: 0
+              wait_for_timeout: 20000
+              max_concurrent_pages: 2
+              device_scale_factor: 1.0
           - item_type: image
             key: bar_chart
             value: ${{ workflow.persist_bar_chart.return }}
             screenshot_config:
               wait_for_timeout: 0
+              max_concurrent_pages: 2
           - item_type: table
             key: transport_summary
             value: ${{ workflow.transport_summary.return }}
