@@ -5,12 +5,12 @@
 This workflow helps you to process, visualize, and summarize SMART patrol data for the Mara Triangle conservancy.
 
 **What this workflow does:**
-- Loads patrol observation data from a file (Parquet, CSV, GeoJSON, GeoPackage, or Shapefile)
+- Downloads patrol observation data from **SMART** via a configured data source in Ecoscope Desktop
 - Processes observations by converting timezones, filtering coordinates, and building trajectory segments
 - Generates interactive maps showing patrol trajectories color-coded by station
 - Summarizes patrol activity by transport type, mandate, station, and individual ranger
 - Creates bar charts comparing station-level distance and duration
-- Exports data and summary tables in multiple formats (CSV, Parquet, GeoParquet, GPKG)
+- Exports data and summary tables in multiple formats (CSV, Parquet)
 - Generates a Word (.docx) report with maps, charts, and summary tables
 
 **Who should use this:**
@@ -27,10 +27,10 @@ Before using this workflow, you need:
 1. **Ecoscope Desktop** installed on your computer
    - If you haven't installed it yet, please follow the installation instructions for Ecoscope Desktop
 
-2. **Patrol observation data** exported as a supported file format
-   - Supported formats: Parquet, GeoParquet, GeoJSON, JSON, GeoPackage, CSV, or Shapefile
-   - The file should contain patrol relocation data with columns such as `fixtime`, `patrol_id`, `station`, `patrol_mandate`, `patrol_transport`, and `patrol_leader_name`
-   - You'll need to know the full file path on your computer
+2. **SMART Data Source** configured in Ecoscope Desktop
+   - You must have already set up a connection to your SMART server
+   - Your data source should be configured with proper authentication credentials
+   - You'll need to know the name of your configured data source (e.g., `"mara_triangle"`)
 
 3. **A Word template file** (.docx) for report generation
    - This template uses Jinja2 placeholders to insert maps, charts, and tables
@@ -59,7 +59,14 @@ Add information that will help to differentiate this workflow from another.
 - **Workflow Description** (optional): A short description of the workflow
   - Example: `"SMART patrol trajectories workflow"`
 
-#### 2. Time Range
+#### 2. Data Source
+Select one of your configured SMART data sources.
+
+- **Data Source** (required): The name of your configured SMART connection in Ecoscope Desktop
+  - Example: `"mara_triangle"`
+  - Note: This must match the name exactly as configured in your data sources
+
+#### 3. Time Range
 Choose the period of time to analyze.
 
 - **Since** (required): The start date and time for the analysis period
@@ -68,14 +75,6 @@ Choose the period of time to analyze.
   - Example: `2026-02-28T23:59:59Z`
 - **Timezone** (optional): The timezone to use for displaying dates and times in outputs. If not set, times remain in UTC.
   - Example: `Africa/Nairobi (UTC+03:00)`
-
-#### 3. Load Patrol Observations
-Provide the patrol observation data file to process.
-
-- **File Path** (required): The full path to the file on your computer
-  - Example: `"/Users/you/data/mt_patrol_reloc.parquet"`
-  - Supported formats: `.parquet`, `.geoparquet`, `.geojson`, `.json`, `.gpkg`, `.csv`, `.shp`
-- **Layer** (optional, advanced): Layer name for GeoPackage files. Only needed if your `.gpkg` file contains multiple layers.
 
 #### 4. Persist Patrol Trajectories
 Choose the output format(s) for your processed patrol trajectory data.
@@ -99,7 +98,7 @@ These optional settings provide additional control over your workflow:
 Filter track data by setting limits on segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and focusing on meaningful movement patterns.
 
 - **Minimum Segment Length (Meters)**: Default `0.001`
-- **Maximum Segment Length (Meters)**: Default `100000`
+- **Maximum Segment Length (Meters)**: Default `10000`
 - **Minimum Segment Duration (Seconds)**: Default `1`
 - **Maximum Segment Duration (Seconds)**: Default `172800` (48 hours)
 - **Minimum Segment Speed (km/h)**: Default `0.01`
@@ -119,7 +118,7 @@ Select tile layers to use as base layers in map outputs. The first layer in the 
 Once you've configured all the settings:
 
 1. **Review your configuration**
-   - Double-check your time range, file path, and template path
+   - Double-check your data source, time range, and template path
 
 2. **Save and run**
    - Click "Submit" and the workflow will show up in the "My Workflows" table
@@ -129,8 +128,8 @@ Once you've configured all the settings:
    - You'll see status updates as the workflow runs
    - Processing time depends on:
      - The size of your date range
-     - Number of patrol observations in the file
-     - Number of stations and patrols
+     - Number of patrols in SMART for the selected period
+     - Number of stations and patrol observations
    - The workflow completes with status "Success" or "Failed"
 
 ---
@@ -144,8 +143,8 @@ After the workflow completes successfully, you'll find your outputs in the desig
 #### Patrol Trajectory Data
 Processed patrol trajectories saved in the format(s) you selected.
 
-- **File formats**: CSV, Parquet, GeoParquet, and/or GPKG (based on your selection)
-- **Opens in**: Microsoft Excel, Google Sheets (CSV), Python/R (Parquet/GeoParquet), QGIS/ArcGIS (GPKG)
+- **File formats**: CSV and/or Parquet (based on your selection)
+- **Opens in**: Microsoft Excel, Google Sheets (CSV), Python/R (Parquet)
 - **Contents**: Each row represents a trajectory segment between two consecutive patrol relocations
   - `segment_start`: Start time of the segment
   - `timespan_seconds`: Duration of the segment in seconds
@@ -204,10 +203,10 @@ Here are some typical scenarios and how to configure the workflow for each:
 **Configuration**:
 - **Workflow Name**: `"MT Patrols"`
 - **Workflow Description**: `"SMART patrol trajectories workflow"`
+- **Data Source**: `"mara_triangle"`
 - **Time Range**:
   - Since: `2026-02-01T00:00:00Z`
   - Until: `2026-02-28T23:59:59Z`
-- **File Path**: `"/path/to/mt_patrol_reloc.parquet"`
 - **Template Path**: `/path/to/mt_patrols_report_template.docx`
 - **Filetypes**: `["parquet"]`
 
@@ -229,25 +228,25 @@ Here are some typical scenarios and how to configure the workflow for each:
 
 **Solutions**:
 - Verify that Ecoscope Desktop is running and up to date
-- Check that all required fields are filled in (Workflow Name, Time Range, File Path, Template Path)
+- Check that all required fields are filled in (Workflow Name, Data Source, Time Range, Template Path)
 - Restart Ecoscope Desktop and try again
 
-#### File Not Found Error
-**Problem**: The workflow fails with a "file not found" error.
+#### Authentication or Connection Error
+**Problem**: The workflow fails when trying to connect to SMART.
 
 **Solutions**:
-- Verify the file path is correct and the file exists at the specified location
-- Check that the file extension matches a supported format (`.parquet`, `.geoparquet`, `.geojson`, `.json`, `.gpkg`, `.csv`, `.shp`)
-- Ensure you have read permissions for the file
-- Use the full absolute path, not a relative path
+- Verify your SMART data source is correctly configured in Ecoscope Desktop
+- Check that the data source name matches exactly (e.g., `"mara_triangle"`)
+- Ensure your SMART server credentials are valid and not expired
+- Confirm your network connection allows access to the SMART server
 
 #### No Data in Results
 **Problem**: The workflow completes but outputs are empty or missing.
 
 **Solutions**:
 - Confirm that your time range covers the period when patrol data was collected
-- Check that the input file contains data within your specified time range
-- Verify the input file has the expected columns (`fixtime`, `patrol_id`, `station`, etc.)
+- Check that patrols exist in SMART for the selected date range
+- Verify that your SMART user account has permissions to access patrol data
 
 #### Maps Are Empty or Missing
 **Problem**: The patrol trajectory maps show no data or are not generated.
