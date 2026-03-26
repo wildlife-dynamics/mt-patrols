@@ -13,6 +13,9 @@ base:
         name: "mara_triangle"
     # patrol_obs:
     #   file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
+    patrol_traj:
+      trajectory_segment_filter:
+        max_length_meters: 10000
     persist_patrol_traj:
       filetypes: ["parquet"]
     base_map_defs:

@@ -266,7 +266,7 @@ class PatrolTraj(BaseModel):
         default_factory=lambda: TrajectorySegmentFilter.model_validate(
             {
                 "min_length_meters": 0.001,
-                "max_length_meters": 100000,
+                "max_length_meters": 10000,
                 "min_time_secs": 1,
                 "max_time_secs": 172800,
                 "min_speed_kmhr": 0.01,

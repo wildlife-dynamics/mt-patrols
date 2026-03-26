@@ -16,6 +16,13 @@ requirements:
 
 rjsf-overrides:
   properties:
+    Process Patrol Observations.properties.patrol_traj.properties.trajectory_segment_filter.default:
+      min_length_meters: 0.001
+      max_length_meters: 10000
+      min_time_secs: 1
+      max_time_secs: 172800
+      min_speed_kmhr: 0.01
+      max_speed_kmhr: 500
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
     persist_patrol_traj.properties.filetypes.items.enum: ["csv", "parquet"]
     Generate Maps.properties.base_map_defs.properties.base_maps.default:
