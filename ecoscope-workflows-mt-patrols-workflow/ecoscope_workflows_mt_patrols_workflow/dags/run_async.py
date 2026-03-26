@@ -1046,6 +1046,7 @@ def main(params: Params):
                             "screenshot_config": {
                                 "wait_for_timeout": 0,
                                 "max_concurrent_pages": 3,
+                                "device_scale_factor": 1.0,
                             },
                         },
                         {
@@ -1055,6 +1056,7 @@ def main(params: Params):
                             "screenshot_config": {
                                 "wait_for_timeout": 0,
                                 "max_concurrent_pages": 3,
+                                "device_scale_factor": 1.0,
                             },
                         },
                         {

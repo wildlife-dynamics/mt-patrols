@@ -474,12 +474,14 @@ workflow:
             screenshot_config:
               wait_for_timeout: 0
               max_concurrent_pages: 3
+              device_scale_factor: 1.0
           - item_type: image
             key: bar_chart
             value: ${{ workflow.persist_bar_chart.return }}
             screenshot_config:
               wait_for_timeout: 0
               max_concurrent_pages: 3
+              device_scale_factor: 1.0
           - item_type: table
             key: transport_summary
             value: ${{ workflow.transport_summary.return }}
