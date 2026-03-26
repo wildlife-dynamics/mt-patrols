@@ -23,4 +23,4 @@ base:
         - layer_name: "TOPO"
           opacity: 1
     create_patrol_report:
-      template_path: /Users/yunwu/MEP/wt/mt-patrols/resources/templates/mt_patrols_report_template.docx
+      template_path: https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx
