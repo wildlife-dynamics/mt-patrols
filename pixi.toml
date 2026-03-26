@@ -1,6 +1,8 @@
 [project]
-name = "wt-mt-patrols"
+name = "mt-patrols"
 channels = [
+    # Uncomment the following lines to use local channels for development.
+    # "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     'https://repo.prefix.dev/ecoscope-workflows/',
     'https://repo.prefix.dev/ecoscope-workflows-custom/',
     'conda-forge',
@@ -14,9 +16,9 @@ yq = "*"
 hatch = "*"
 
 [feature.compile.dependencies]
-ecoscope-workflows-core = ">=0.22.2,<0.23"
-ecoscope-workflows-ext-ecoscope = ">=0.22.2,<0.23"
-ecoscope-workflows-ext-custom = ">=0.0.24, <0.1.0"
+ecoscope-workflows-core = ">=0.22.17,<0.23"
+ecoscope-workflows-ext-ecoscope = ">=0.22.17,<0.23"
+ecoscope-workflows-ext-custom = ">=0.0.40, <0.1.0"
 
 [environments]
 compile = { features = [

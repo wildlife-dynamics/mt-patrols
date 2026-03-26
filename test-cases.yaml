@@ -11,14 +11,16 @@ base:
     smart_client_name:
       data_source:
         name: "mara_triangle"
-    patrol_obs:
-      ca_uuid: "735606d2-c34e-49c3-a45b-7496ca834e58"
-      language_uuid: "13451893-86af-4ec0-beac-2b8e0c2482b5"
-      read_path: "/Users/yunwu/MEP/wt/outputs/mt_patrol_reloc_08aed9f.parquet"
-    groupers:
-      groupers: 
-        - index_name: "patrol_mandate"
-    set_patrol_traj_color_column:
-      var: "patrol_id"
-    set_skip_map:
-      var: false
+    # patrol_obs:
+    #   file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
+    patrol_traj:
+      trajectory_segment_filter:
+        max_length_meters: 10000
+    persist_patrol_traj:
+      filetypes: ["parquet"]
+    base_map_defs:
+      base_maps:
+        - layer_name: "TOPO"
+          opacity: 1
+    create_patrol_report:
+      template_path: https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx

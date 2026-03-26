@@ -26,10 +26,9 @@ from ecoscope_workflows_core.tasks.skip import any_is_empty_df as any_is_empty_d
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
 
 get_patrol_observations_from_smart = create_task_magicmock(  # 🧪
-    anchor="ecoscope_workflows_ext_custom.tasks.io",  # 🧪
+    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_patrol_observations_from_smart",  # 🧪
 )  # 🧪
-from ecoscope_workflows_core.tasks.config import set_bool_var as set_bool_var
 from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
 from ecoscope_workflows_core.tasks.filter import (
     get_timezone_from_time_range as get_timezone_from_time_range,
@@ -37,13 +36,7 @@ from ecoscope_workflows_core.tasks.filter import (
 from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
 from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
 from ecoscope_workflows_core.tasks.io import persist_text as persist_text
-from ecoscope_workflows_core.tasks.results import (
-    create_map_widget_single_view as create_map_widget_single_view,
-)
 from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope_workflows_core.tasks.results import (
-    merge_widget_views as merge_widget_views,
-)
 from ecoscope_workflows_core.tasks.skip import never as never
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index as add_temporal_index,
@@ -55,18 +48,19 @@ from ecoscope_workflows_core.tasks.transformation import map_columns as map_colu
 from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
-from ecoscope_workflows_ext_custom.tasks.skip import maybe_skip_df as maybe_skip_df
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    apply_sql_query as apply_sql_query,
-)
+from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
+from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
     create_polyline_layer as create_polyline_layer,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    draw_bar_chart as draw_bar_chart,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap as draw_ecomap
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps as set_base_maps
@@ -100,33 +94,38 @@ def main(params: Params):
         "patrol_traj": ["filter_patrol_obs"],
         "drop_extra_prefix_traj": ["patrol_traj"],
         "customize_columns_internally": ["drop_extra_prefix_traj"],
-        "customize_columns_traj": ["customize_columns_internally"],
-        "sql_query_traj": ["customize_columns_traj"],
-        "groupers": [],
-        "set_patrol_traj_color_column": [],
-        "traj_add_temporal_index": ["sql_query_traj", "groupers"],
-        "traj_colormap": ["traj_add_temporal_index", "set_patrol_traj_color_column"],
-        "split_patrol_traj_groups": ["traj_colormap", "groupers"],
+        "traj_add_temporal_index": ["customize_columns_internally"],
+        "traj_colormap": ["traj_add_temporal_index"],
+        "split_patrol_traj_groups": ["traj_colormap"],
         "persist_patrol_traj": ["split_patrol_traj_groups"],
-        "set_skip_map": [],
-        "skip_traj_map": ["set_skip_map", "split_patrol_traj_groups"],
         "set_patrol_map_title": [],
         "base_map_defs": [],
-        "rename_traj_display_columns": ["skip_traj_map"],
+        "rename_traj_display_columns": ["split_patrol_traj_groups"],
         "patrol_traj_map_layers": ["rename_traj_display_columns"],
         "traj_ecomap": ["base_map_defs", "patrol_traj_map_layers"],
         "traj_ecomap_html_urls": ["traj_ecomap"],
-        "traj_map_widgets_single_views": [
-            "set_patrol_map_title",
-            "traj_ecomap_html_urls",
-        ],
-        "traj_grouped_map_widget": ["traj_map_widgets_single_views"],
-        "patrol_dashboard": [
-            "workflow_details",
-            "traj_grouped_map_widget",
-            "groupers",
+        "transport_summary": ["customize_columns_internally"],
+        "station_summary": ["customize_columns_internally"],
+        "patrol_bar_chart": ["station_summary"],
+        "persist_bar_chart": ["patrol_bar_chart"],
+        "persist_transport_summary": ["transport_summary"],
+        "mandate_summary": ["customize_columns_internally"],
+        "persist_mandate_summary": ["mandate_summary"],
+        "station_groupers": [],
+        "split_by_station": ["customize_columns_internally", "station_groupers"],
+        "ranger_summary": ["split_by_station"],
+        "persist_ranger_summary": ["ranger_summary"],
+        "report_groupers": [],
+        "create_patrol_report": [
             "time_range",
+            "traj_ecomap_html_urls",
+            "persist_bar_chart",
+            "transport_summary",
+            "mandate_summary",
+            "ranger_summary",
+            "report_groupers",
         ],
+        "patrol_dashboard": ["workflow_details", "time_range"],
     }
 
     nodes = {
@@ -197,6 +196,10 @@ def main(params: Params):
             partial={
                 "client": DependsOn("smart_client_name"),
                 "time_range": DependsOn("time_range"),
+                "ca_uuid": "735606d2-c34e-49c3-a45b-7496ca834e58",
+                "language_uuid": "13451893-86af-4ec0-beac-2b8e0c2482b5",
+                "patrol_mandate": None,
+                "patrol_transport": None,
             }
             | (params_dict.get("patrol_obs") or {}),
             method="call",
@@ -363,81 +366,11 @@ def main(params: Params):
                 "df": DependsOn("drop_extra_prefix_traj"),
                 "drop_columns": [
                     "id",
+                    "track",
                 ],
                 "raise_if_not_found": False,
             }
             | (params_dict.get("customize_columns_internally") or {}),
-            method="call",
-        ),
-        "customize_columns_traj": Node(
-            async_task=map_columns.validate()
-            .set_task_instance_id("customize_columns_traj")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("customize_columns_internally"),
-                "raise_if_not_found": False,
-            }
-            | (params_dict.get("customize_columns_traj") or {}),
-            method="call",
-        ),
-        "sql_query_traj": Node(
-            async_task=apply_sql_query.validate()
-            .set_task_instance_id("sql_query_traj")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("customize_columns_traj"),
-            }
-            | (params_dict.get("sql_query_traj") or {}),
-            method="call",
-        ),
-        "groupers": Node(
-            async_task=set_groupers.validate()
-            .set_task_instance_id("groupers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("groupers") or {}),
-            method="call",
-        ),
-        "set_patrol_traj_color_column": Node(
-            async_task=set_string_var.validate()
-            .set_task_instance_id("set_patrol_traj_color_column")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("set_patrol_traj_color_column") or {}),
             method="call",
         ),
         "traj_add_temporal_index": Node(
@@ -454,9 +387,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("sql_query_traj"),
+                "df": DependsOn("customize_columns_internally"),
                 "time_col": "segment_start",
-                "groupers": DependsOn("groupers"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                ],
                 "cast_to_datetime": True,
                 "format": "mixed",
             }
@@ -496,7 +433,7 @@ def main(params: Params):
                     "#331878",
                     "#E76826",
                 ],
-                "input_column_name": DependsOn("set_patrol_traj_color_column"),
+                "input_column_name": "station",
                 "output_column_name": "patrol_traj_colormap",
             }
             | (params_dict.get("traj_colormap") or {}),
@@ -517,7 +454,11 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("traj_colormap"),
-                "groupers": DependsOn("groupers"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                ],
             }
             | (params_dict.get("split_patrol_traj_groups") or {}),
             method="call",
@@ -536,48 +477,10 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "patrol_trajectories",
                 "sanitize": True,
             }
             | (params_dict.get("persist_patrol_traj") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_patrol_traj_groups"),
-            },
-        ),
-        "set_skip_map": Node(
-            async_task=set_bool_var.validate()
-            .set_task_instance_id("set_skip_map")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial=(params_dict.get("set_skip_map") or {}),
-            method="call",
-        ),
-        "skip_traj_map": Node(
-            async_task=maybe_skip_df.validate()
-            .set_task_instance_id("skip_traj_map")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "skip": DependsOn("set_skip_map"),
-            }
-            | (params_dict.get("skip_traj_map") or {}),
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
@@ -616,15 +519,7 @@ def main(params: Params):
                 unpack_depth=1,
             )
             .set_executor("lithops"),
-            partial={
-                "base_maps": [
-                    {
-                        "layer_name": "TERRAIN",
-                        "opacity": 1,
-                    },
-                ],
-            }
-            | (params_dict.get("base_map_defs") or {}),
+            partial=(params_dict.get("base_map_defs") or {}),
             method="call",
         ),
         "rename_traj_display_columns": Node(
@@ -652,7 +547,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("skip_traj_map"),
+                "argvalues": DependsOn("split_patrol_traj_groups"),
             },
         ),
         "patrol_traj_map_layers": Node(
@@ -675,7 +570,10 @@ def main(params: Params):
                     "width_units": "pixels",
                     "color_column": "patrol_traj_colormap",
                 },
-                "legend": None,
+                "legend": {
+                    "label_column": "station",
+                    "color_column": "patrol_traj_colormap",
+                },
                 "tooltip_columns": [
                     "Start Time",
                     "Duration (s)",
@@ -708,7 +606,9 @@ def main(params: Params):
                 "north_arrow_style": {
                     "placement": "top-left",
                 },
-                "legend_style": None,
+                "legend_style": {
+                    "placement": "bottom-right",
+                },
                 "static": False,
                 "max_zoom": 20,
             }
@@ -734,6 +634,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_suffix": "patrol_map",
             }
             | (params_dict.get("traj_ecomap_html_urls") or {}),
             method="mapvalues",
@@ -742,31 +643,9 @@ def main(params: Params):
                 "argvalues": DependsOn("traj_ecomap"),
             },
         ),
-        "traj_map_widgets_single_views": Node(
-            async_task=create_map_widget_single_view.validate()
-            .set_task_instance_id("traj_map_widgets_single_views")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    never,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "title": DependsOn("set_patrol_map_title"),
-            }
-            | (params_dict.get("traj_map_widgets_single_views") or {}),
-            method="map",
-            kwargs={
-                "argnames": ["view", "data"],
-                "argvalues": DependsOn("traj_ecomap_html_urls"),
-            },
-        ),
-        "traj_grouped_map_widget": Node(
-            async_task=merge_widget_views.validate()
-            .set_task_instance_id("traj_grouped_map_widget")
+        "transport_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("transport_summary")
             .handle_errors()
             .with_tracing()
             .skipif(
@@ -778,9 +657,440 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "widgets": DependsOn("traj_map_widgets_single_views"),
+                "df": DependsOn("customize_columns_internally"),
+                "groupby_cols": [
+                    "patrol_transport",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "Patrol Count",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Total Duration (hours)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                        "decimal_places": 1,
+                    },
+                ],
+                "reset_index": False,
             }
-            | (params_dict.get("traj_grouped_map_widget") or {}),
+            | (params_dict.get("transport_summary") or {}),
+            method="call",
+        ),
+        "station_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("station_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("customize_columns_internally"),
+                "groupby_cols": [
+                    "station",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "Patrol Count",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Total Duration (hours)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                        "decimal_places": 1,
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("station_summary") or {}),
+            method="call",
+        ),
+        "patrol_bar_chart": Node(
+            async_task=draw_bar_chart.validate()
+            .set_task_instance_id("patrol_bar_chart")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "dataframe": DependsOn("station_summary"),
+                "category": "station",
+                "layout_kwargs": None,
+                "bar_chart_configs": [
+                    {
+                        "label": "Total Distance (km)",
+                        "column": "Total Distance (km)",
+                        "agg_func": "sum",
+                        "show_label": True,
+                        "style": {
+                            "marker_color": "#35b779",
+                        },
+                    },
+                    {
+                        "label": "Total Duration (hours)",
+                        "column": "Total Duration (hours)",
+                        "agg_func": "sum",
+                        "show_label": True,
+                        "style": {
+                            "marker_color": "#31688e",
+                        },
+                    },
+                ],
+            }
+            | (params_dict.get("patrol_bar_chart") or {}),
+            method="call",
+        ),
+        "persist_bar_chart": Node(
+            async_task=persist_text.validate()
+            .set_task_instance_id("persist_bar_chart")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "text": DependsOn("patrol_bar_chart"),
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_suffix": "transport_bar_chart",
+            }
+            | (params_dict.get("persist_bar_chart") or {}),
+            method="call",
+        ),
+        "persist_transport_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_transport_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("transport_summary"),
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "transport_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_transport_summary") or {}),
+            method="call",
+        ),
+        "mandate_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("mandate_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("customize_columns_internally"),
+                "groupby_cols": [
+                    "patrol_mandate",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "Patrol Count",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Total Duration (hours)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                        "decimal_places": 1,
+                    },
+                ],
+                "reset_index": False,
+            }
+            | (params_dict.get("mandate_summary") or {}),
+            method="call",
+        ),
+        "persist_mandate_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_mandate_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("mandate_summary"),
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "mandate_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_mandate_summary") or {}),
+            method="call",
+        ),
+        "station_groupers": Node(
+            async_task=set_groupers.validate()
+            .set_task_instance_id("station_groupers")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupers": [
+                    {
+                        "index_name": "station",
+                    },
+                ],
+            }
+            | (params_dict.get("station_groupers") or {}),
+            method="call",
+        ),
+        "split_by_station": Node(
+            async_task=split_groups.validate()
+            .set_task_instance_id("split_by_station")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("customize_columns_internally"),
+                "groupers": DependsOn("station_groupers"),
+            }
+            | (params_dict.get("split_by_station") or {}),
+            method="call",
+        ),
+        "ranger_summary": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("ranger_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": [
+                    "patrol_leader_name",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "Patrol Count",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Total Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Total Duration (hours)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                        "decimal_places": 1,
+                    },
+                ],
+                "reset_index": False,
+            }
+            | (params_dict.get("ranger_summary") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_by_station"),
+            },
+        ),
+        "persist_ranger_summary": Node(
+            async_task=persist_df_wrapper.validate()
+            .set_task_instance_id("persist_ranger_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "ranger_summary",
+                "filetypes": [
+                    "csv",
+                ],
+                "sanitize": True,
+            }
+            | (params_dict.get("persist_ranger_summary") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("ranger_summary"),
+            },
+        ),
+        "report_groupers": Node(
+            async_task=set_groupers.validate()
+            .set_task_instance_id("report_groupers")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
+                    {
+                        "index_name": "station",
+                    },
+                ],
+            }
+            | (params_dict.get("report_groupers") or {}),
+            method="call",
+        ),
+        "create_patrol_report": Node(
+            async_task=create_docx.validate()
+            .set_task_instance_id("create_patrol_report")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "context": {
+                    "items": [
+                        {
+                            "item_type": "timerange",
+                            "key": "report_date",
+                            "value": DependsOn("time_range"),
+                            "format": "%b %Y",
+                        },
+                        {
+                            "item_type": "image",
+                            "key": "patrol_maps",
+                            "value": DependsOn("traj_ecomap_html_urls"),
+                            "screenshot_config": {
+                                "wait_for_timeout": 0,
+                            },
+                        },
+                        {
+                            "item_type": "image",
+                            "key": "bar_chart",
+                            "value": DependsOn("persist_bar_chart"),
+                            "screenshot_config": {
+                                "wait_for_timeout": 0,
+                            },
+                        },
+                        {
+                            "item_type": "table",
+                            "key": "transport_summary",
+                            "value": DependsOn("transport_summary"),
+                        },
+                        {
+                            "item_type": "table",
+                            "key": "mandate_summary",
+                            "value": DependsOn("mandate_summary"),
+                        },
+                        {
+                            "item_type": "table",
+                            "key": "ranger_summary",
+                            "value": DependsOn("ranger_summary"),
+                        },
+                    ],
+                },
+                "groupers": DependsOn("report_groupers"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename_prefix": "mt_patrols_report",
+            }
+            | (params_dict.get("create_patrol_report") or {}),
             method="call",
         ),
         "patrol_dashboard": Node(
@@ -798,10 +1108,11 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "details": DependsOn("workflow_details"),
-                "widgets": [
-                    DependsOn("traj_grouped_map_widget"),
+                "groupers": [
+                    {
+                        "index_name": "patrol_mandate",
+                    },
                 ],
-                "groupers": DependsOn("groupers"),
                 "time_range": DependsOn("time_range"),
             }
             | (params_dict.get("patrol_dashboard") or {}),
