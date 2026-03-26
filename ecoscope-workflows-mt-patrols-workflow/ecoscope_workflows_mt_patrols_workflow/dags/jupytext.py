@@ -424,7 +424,7 @@ customize_columns_internally = (
     .partial(
         df=drop_extra_prefix_traj,
         rename_columns={},
-        drop_columns=["id"],
+        drop_columns=["id", "track"],
         retain_columns=[],
         raise_if_not_found=False,
         **customize_columns_internally_params,

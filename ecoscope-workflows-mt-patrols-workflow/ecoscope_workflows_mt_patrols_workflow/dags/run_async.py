@@ -352,6 +352,7 @@ def main(params: Params):
                 "df": DependsOn("drop_extra_prefix_traj"),
                 "drop_columns": [
                     "id",
+                    "track",
                 ],
                 "raise_if_not_found": False,
             }

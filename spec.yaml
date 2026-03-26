@@ -128,7 +128,7 @@ workflow:
         partial:
           df: ${{ workflow.drop_extra_prefix_traj.return }}
           rename_columns: {}
-          drop_columns: ["id"]
+          drop_columns: ["id", "track"]
           retain_columns: []
           raise_if_not_found: false
 
