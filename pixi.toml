@@ -1,5 +1,5 @@
 [project]
-name = "wt-mt-patrols"
+name = "mt-patrols"
 channels = [
     # Uncomment the following lines to use local channels for development.
     # "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
