@@ -1044,7 +1044,7 @@ def main(params: Params):
                             "key": "patrol_maps",
                             "value": DependsOn("traj_ecomap_html_urls"),
                             "screenshot_config": {
-                                "wait_for_timeout": 0,
+                                "wait_for_timeout": 20000,
                                 "max_concurrent_pages": 2,
                                 "device_scale_factor": 1.0,
                             },

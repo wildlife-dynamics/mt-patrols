@@ -472,7 +472,7 @@ workflow:
             key: patrol_maps
             value: ${{ workflow.traj_ecomap_html_urls.return }}
             screenshot_config:
-              wait_for_timeout: 0
+              wait_for_timeout: 20000
               max_concurrent_pages: 2
               device_scale_factor: 1.0
           - item_type: image
