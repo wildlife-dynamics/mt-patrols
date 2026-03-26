@@ -3,7 +3,6 @@
 [workspace]
 name = "ecoscope-workflows-mt-patrols-workflow"
 channels = [
-    "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     "https://repo.prefix.dev/ecoscope-workflows-custom/",
     "https://repo.prefix.dev/ecoscope-workflows/",
     "conda-forge",
@@ -29,8 +28,8 @@ version = ">=0.22.17,<0.23.0"
 channel = "https://repo.prefix.dev/ecoscope-workflows/"
 
 [dependencies.ecoscope-workflows-ext-custom]
-version = "*"
-channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/"
+version = ">=0.0.40,<0.1.0"
+channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.pydeck]
 version = "==0.0.2"
@@ -130,5 +129,5 @@ solve-group = "test"
 no-default-feature = true
 
 [tasks]
-docker-build = "mkdir -p .tmp/ecoscope-workflows/release/artifacts/\n&& cp -r /tmp/ecoscope-workflows/release/artifacts/* .tmp/ecoscope-workflows/release/artifacts/\n&& docker buildx build -t ecoscope-workflows-mt-patrols-workflow .\n"
+docker-build = "docker buildx build -t ecoscope-workflows-mt-patrols-workflow ."
 ecoscope-workflows-mt-patrols-workflow = "python -m ecoscope_workflows_mt_patrols_workflow.cli"

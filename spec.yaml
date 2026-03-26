@@ -8,8 +8,8 @@ requirements:
     version: ">=0.22.17, <0.23.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
   - name: ecoscope-workflows-ext-custom
-    version: "*"
-    channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
+    version: ">=0.0.40, <0.1.0"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   - name: pydeck
     version: "0.0.2"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
