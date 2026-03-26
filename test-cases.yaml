@@ -12,7 +12,7 @@ base:
     #   data_source:
     #     name: "mara_triangle"
     patrol_obs:
-      file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock_patrol_reloc.parquet"
+      file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
     base_map_defs:
       base_maps:
         - layer_name: "TOPO"
