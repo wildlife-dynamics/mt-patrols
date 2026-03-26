@@ -198,6 +198,8 @@ def main(params: Params):
                 "time_range": DependsOn("time_range"),
                 "ca_uuid": "735606d2-c34e-49c3-a45b-7496ca834e58",
                 "language_uuid": "13451893-86af-4ec0-beac-2b8e0c2482b5",
+                "patrol_mandate": None,
+                "patrol_transport": None,
             }
             | (params_dict.get("patrol_obs") or {}),
             method="call",

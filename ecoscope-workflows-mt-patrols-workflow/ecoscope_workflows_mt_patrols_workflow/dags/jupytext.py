@@ -171,10 +171,7 @@ time_range = (
 # %%
 # parameters
 
-patrol_obs_params = dict(
-    patrol_mandate=...,
-    patrol_transport=...,
-)
+patrol_obs_params = dict()
 
 # %%
 # call the task
@@ -196,6 +193,8 @@ patrol_obs = (
         time_range=time_range,
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
         language_uuid="13451893-86af-4ec0-beac-2b8e0c2482b5",
+        patrol_mandate=None,
+        patrol_transport=None,
         **patrol_obs_params,
     )
     .call()

@@ -17,6 +17,7 @@ requirements:
 rjsf-overrides:
   properties:
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
+    persist_patrol_traj.properties.filetypes.items.enum: ["csv", "parquet"]
     Generate Maps.properties.base_map_defs.properties.base_maps.default:
       - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
         opacity: 1
@@ -53,6 +54,8 @@ workflow:
       time_range: ${{ workflow.time_range.return }}
       ca_uuid: "735606d2-c34e-49c3-a45b-7496ca834e58"
       language_uuid: "13451893-86af-4ec0-beac-2b8e0c2482b5"
+      patrol_mandate: null
+      patrol_transport: null
 
   # - name: Load Patrol Observations
   #   id: patrol_obs

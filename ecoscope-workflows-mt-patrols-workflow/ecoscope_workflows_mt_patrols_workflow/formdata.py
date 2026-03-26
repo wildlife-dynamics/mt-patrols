@@ -17,22 +17,8 @@ class WorkflowDetails(BaseModel):
     description: str | None = Field("", title="Workflow Description")
 
 
-class PatrolObs(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    patrol_mandate: str | None = Field(
-        None, description="Patrol Mandate", title="Patrol Mandate"
-    )
-    patrol_transport: str | None = Field(
-        None, description="Patrol Transport", title="Patrol Transport"
-    )
-
-
 class Filetype(str, Enum):
     csv = "csv"
-    gpkg = "gpkg"
-    geoparquet = "geoparquet"
     parquet = "parquet"
 
 
@@ -309,7 +295,6 @@ class FormData(BaseModel):
     time_range: TimeRange | None = Field(
         None, description="Choose the period of time to analyze.", title="Time Range"
     )
-    patrol_obs: PatrolObs | None = Field(None, title="Get Patrol Observations")
     Process_Patrol_Observations: ProcessPatrolObservations | None = Field(
         None,
         alias="Process Patrol Observations",

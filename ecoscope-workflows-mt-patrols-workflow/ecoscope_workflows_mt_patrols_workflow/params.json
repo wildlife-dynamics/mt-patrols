@@ -68,28 +68,6 @@
       "description": "Choose the period of time to analyze.",
       "title": "Time Range"
     },
-    "patrol_obs": {
-      "additionalProperties": false,
-      "properties": {
-        "patrol_mandate": {
-          "default": null,
-          "title": "Patrol Mandate",
-          "type": "string",
-          "description": "Patrol Mandate",
-          "ecoscope:advanced": true
-        },
-        "patrol_transport": {
-          "default": null,
-          "title": "Patrol Transport",
-          "type": "string",
-          "description": "Patrol Transport",
-          "ecoscope:advanced": true
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Get Patrol Observations"
-    },
     "patrol_traj": {
       "additionalProperties": false,
       "properties": {
@@ -470,17 +448,10 @@
         "timezone"
       ]
     },
-    "patrol_obs": {
-      "ui:order": [
-        "patrol_mandate",
-        "patrol_transport"
-      ]
-    },
     "ui:order": [
       "workflow_details",
       "smart_client_name",
       "time_range",
-      "patrol_obs",
       "patrol_traj",
       "persist_patrol_traj",
       "base_map_defs",
