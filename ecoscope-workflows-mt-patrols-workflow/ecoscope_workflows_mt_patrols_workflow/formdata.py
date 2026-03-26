@@ -21,15 +21,11 @@ class PatrolObs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    file_path: str = Field(
-        ...,
-        description="Path to the file to load. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv, .shp",
-        title="File Path",
+    patrol_mandate: str | None = Field(
+        None, description="Patrol Mandate", title="Patrol Mandate"
     )
-    layer: str | None = Field(
-        None,
-        description="Layer name for GeoPackage files (optional, only used for .gpkg files)",
-        title="Layer",
+    patrol_transport: str | None = Field(
+        None, description="Patrol Transport", title="Patrol Transport"
     )
 
 
@@ -226,6 +222,10 @@ class CreatePatrolReport(BaseModel):
     )
 
 
+class SMARTConnection(BaseModel):
+    name: str = Field(..., title="Data Source")
+
+
 class TimezoneInfo(BaseModel):
     label: str = Field(..., title="Label")
     tzCode: str = Field(..., title="Tzcode")
@@ -251,6 +251,15 @@ class TrajectorySegmentFilter(BaseModel):
     )
     max_speed_kmhr: confloat(gt=0.001) | None = Field(
         500, title="Maximum Segment Speed (Kilometers per Hour)"
+    )
+
+
+class SmartClientName(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    data_source: SMARTConnection = Field(
+        ..., description="Select one of your configured data sources.", title=""
     )
 
 
@@ -296,10 +305,11 @@ class FormData(BaseModel):
         description="Add information that will help to differentiate this workflow from another.",
         title="Workflow Details",
     )
+    smart_client_name: SmartClientName | None = Field(None, title="Data Source")
     time_range: TimeRange | None = Field(
         None, description="Choose the period of time to analyze.", title="Time Range"
     )
-    patrol_obs: PatrolObs | None = Field(None, title="Load Patrol Observations")
+    patrol_obs: PatrolObs | None = Field(None, title="Get Patrol Observations")
     Process_Patrol_Observations: ProcessPatrolObservations | None = Field(
         None,
         alias="Process Patrol Observations",

@@ -14,6 +14,9 @@ from ecoscope_workflows_core.tasks.filter import set_time_range as set_time_rang
 from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
 from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
 from ecoscope_workflows_core.tasks.io import persist_text as persist_text
+from ecoscope_workflows_core.tasks.io import (
+    set_smart_connection as set_smart_connection,
+)
 from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope_workflows_core.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
@@ -27,7 +30,6 @@ from ecoscope_workflows_core.tasks.transformation import (
     convert_values_to_timezone as convert_values_to_timezone,
 )
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
-from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
 from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
@@ -36,6 +38,9 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
+from ecoscope_workflows_ext_ecoscope.tasks.io import (
+    get_patrol_observations_from_smart as get_patrol_observations_from_smart,
+)
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
@@ -65,8 +70,9 @@ def main(params: Params):
 
     dependencies = {
         "workflow_details": [],
+        "smart_client_name": [],
         "time_range": [],
-        "patrol_obs": [],
+        "patrol_obs": ["smart_client_name", "time_range"],
         "get_timezone": ["time_range"],
         "convert_patrols_to_user_timezone": ["patrol_obs", "get_timezone"],
         "drop_extra_prefix_obs": ["convert_patrols_to_user_timezone"],
@@ -125,6 +131,22 @@ def main(params: Params):
             partial=(params_dict.get("workflow_details") or {}),
             method="call",
         ),
+        "smart_client_name": Node(
+            async_task=set_smart_connection.validate()
+            .set_task_instance_id("smart_client_name")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial=(params_dict.get("smart_client_name") or {}),
+            method="call",
+        ),
         "time_range": Node(
             async_task=set_time_range.validate()
             .set_task_instance_id("time_range")
@@ -145,7 +167,7 @@ def main(params: Params):
             method="call",
         ),
         "patrol_obs": Node(
-            async_task=load_df.validate()
+            async_task=get_patrol_observations_from_smart.validate()
             .set_task_instance_id("patrol_obs")
             .handle_errors()
             .with_tracing()
@@ -158,7 +180,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "deserialize_json": False,
+                "client": DependsOn("smart_client_name"),
+                "time_range": DependsOn("time_range"),
+                "ca_uuid": "",
+                "language_uuid": "",
             }
             | (params_dict.get("patrol_obs") or {}),
             method="call",

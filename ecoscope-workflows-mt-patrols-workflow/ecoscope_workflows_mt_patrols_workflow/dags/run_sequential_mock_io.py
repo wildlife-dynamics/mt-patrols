@@ -11,22 +11,31 @@ import json
 import os
 import warnings  # 🧪
 
-from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
 from ecoscope_workflows_core.tasks.config import (
     set_workflow_details as set_workflow_details,
 )
-from ecoscope_workflows_core.tasks.filter import (
-    get_timezone_from_time_range as get_timezone_from_time_range,
-)
 from ecoscope_workflows_core.tasks.filter import set_time_range as set_time_range
-from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
-from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
-from ecoscope_workflows_core.tasks.io import persist_text as persist_text
-from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
+from ecoscope_workflows_core.tasks.io import (
+    set_smart_connection as set_smart_connection,
+)
 from ecoscope_workflows_core.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
 from ecoscope_workflows_core.tasks.skip import any_is_empty_df as any_is_empty_df
+from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
+
+get_patrol_observations_from_smart = create_task_magicmock(  # 🧪
+    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
+    func_name="get_patrol_observations_from_smart",  # 🧪
+)  # 🧪
+from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
+from ecoscope_workflows_core.tasks.filter import (
+    get_timezone_from_time_range as get_timezone_from_time_range,
+)
+from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
+from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
+from ecoscope_workflows_core.tasks.io import persist_text as persist_text
+from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope_workflows_core.tasks.skip import never as never
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index as add_temporal_index,
@@ -35,7 +44,6 @@ from ecoscope_workflows_core.tasks.transformation import (
     convert_values_to_timezone as convert_values_to_timezone,
 )
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
-from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
 from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
@@ -89,6 +97,22 @@ def main(params: Params):
         .call()
     )
 
+    smart_client_name = (
+        set_smart_connection.validate()
+        .set_task_instance_id("smart_client_name")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params_dict.get("smart_client_name") or {}))
+        .call()
+    )
+
     time_range = (
         set_time_range.validate()
         .set_task_instance_id("time_range")
@@ -108,7 +132,7 @@ def main(params: Params):
     )
 
     patrol_obs = (
-        load_df.validate()
+        get_patrol_observations_from_smart.validate()
         .set_task_instance_id("patrol_obs")
         .handle_errors()
         .with_tracing()
@@ -119,7 +143,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(deserialize_json=False, **(params_dict.get("patrol_obs") or {}))
+        .partial(
+            client=smart_client_name,
+            time_range=time_range,
+            ca_uuid="",
+            language_uuid="",
+            **(params_dict.get("patrol_obs") or {}),
+        )
         .call()
     )
 

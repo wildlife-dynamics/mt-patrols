@@ -23,6 +23,9 @@ from ecoscope_workflows_core.tasks.filter import set_time_range as set_time_rang
 from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
 from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
 from ecoscope_workflows_core.tasks.io import persist_text as persist_text
+from ecoscope_workflows_core.tasks.io import (
+    set_smart_connection as set_smart_connection,
+)
 from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope_workflows_core.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
@@ -36,7 +39,6 @@ from ecoscope_workflows_core.tasks.transformation import (
     convert_values_to_timezone as convert_values_to_timezone,
 )
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
-from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
 from ecoscope_workflows_ext_custom.tasks.io import (
     persist_df_wrapper as persist_df_wrapper,
 )
@@ -45,6 +47,9 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
+from ecoscope_workflows_ext_ecoscope.tasks.io import (
+    get_patrol_observations_from_smart as get_patrol_observations_from_smart,
+)
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
@@ -99,6 +104,36 @@ workflow_details = (
 
 
 # %% [markdown]
+# ## Data Source
+
+# %%
+# parameters
+
+smart_client_name_params = dict(
+    data_source=...,
+)
+
+# %%
+# call the task
+
+
+smart_client_name = (
+    set_smart_connection.set_task_instance_id("smart_client_name")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(**smart_client_name_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Time Range
 
 # %%
@@ -131,14 +166,14 @@ time_range = (
 
 
 # %% [markdown]
-# ## Load Patrol Observations
+# ## Get Patrol Observations
 
 # %%
 # parameters
 
 patrol_obs_params = dict(
-    file_path=...,
-    layer=...,
+    patrol_mandate=...,
+    patrol_transport=...,
 )
 
 # %%
@@ -146,7 +181,7 @@ patrol_obs_params = dict(
 
 
 patrol_obs = (
-    load_df.set_task_instance_id("patrol_obs")
+    get_patrol_observations_from_smart.set_task_instance_id("patrol_obs")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -156,7 +191,13 @@ patrol_obs = (
         ],
         unpack_depth=1,
     )
-    .partial(deserialize_json=False, **patrol_obs_params)
+    .partial(
+        client=smart_client_name,
+        time_range=time_range,
+        ca_uuid="",
+        language_uuid="",
+        **patrol_obs_params,
+    )
     .call()
 )
 

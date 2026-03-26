@@ -8,11 +8,11 @@ base:
     time_range:
       since: "2026-02-01T00:00:00Z"
       until: "2026-02-28T23:59:59Z"
-    # smart_client_name:
-    #   data_source:
-    #     name: "mara_triangle"
-    patrol_obs:
-      file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
+    smart_client_name:
+      data_source:
+        name: "mara_triangle"
+    # patrol_obs:
+    #   file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
     base_map_defs:
       base_maps:
         - layer_name: "TOPO"

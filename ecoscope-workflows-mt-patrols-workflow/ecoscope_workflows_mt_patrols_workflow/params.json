@@ -20,6 +20,21 @@
       "description": "Add information that will help to differentiate this workflow from another.",
       "title": "Workflow Details"
     },
+    "smart_client_name": {
+      "additionalProperties": false,
+      "properties": {
+        "data_source": {
+          "$ref": "#/$defs/SMARTConnection",
+          "title": "",
+          "description": "Select one of your configured data sources."
+        }
+      },
+      "required": [
+        "data_source"
+      ],
+      "type": "object",
+      "title": "Data Source"
+    },
     "time_range": {
       "additionalProperties": false,
       "properties": {
@@ -56,24 +71,24 @@
     "patrol_obs": {
       "additionalProperties": false,
       "properties": {
-        "file_path": {
-          "title": "File Path",
-          "type": "string",
-          "description": "Path to the file to load. Supported formats: .parquet, .geoparquet, .geojson, .json, .gpkg, .csv, .shp"
-        },
-        "layer": {
+        "patrol_mandate": {
           "default": null,
-          "title": "Layer",
+          "title": "Patrol Mandate",
           "type": "string",
-          "description": "Layer name for GeoPackage files (optional, only used for .gpkg files)",
+          "description": "Patrol Mandate",
+          "ecoscope:advanced": true
+        },
+        "patrol_transport": {
+          "default": null,
+          "title": "Patrol Transport",
+          "type": "string",
+          "description": "Patrol Transport",
           "ecoscope:advanced": true
         }
       },
-      "required": [
-        "file_path"
-      ],
+      "required": [],
       "type": "object",
-      "title": "Load Patrol Observations"
+      "title": "Get Patrol Observations"
     },
     "patrol_traj": {
       "additionalProperties": false,
@@ -351,6 +366,19 @@
     }
   },
   "$defs": {
+    "SMARTConnection": {
+      "properties": {
+        "name": {
+          "title": "Data Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "SMARTConnection",
+      "type": "object"
+    },
     "TimezoneInfo": {
       "properties": {
         "label": {
@@ -444,12 +472,13 @@
     },
     "patrol_obs": {
       "ui:order": [
-        "file_path",
-        "layer"
+        "patrol_mandate",
+        "patrol_transport"
       ]
     },
     "ui:order": [
       "workflow_details",
+      "smart_client_name",
       "time_range",
       "patrol_obs",
       "patrol_traj",
