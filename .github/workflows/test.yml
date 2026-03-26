@@ -130,21 +130,13 @@ jobs:
         with:
           pixi-version: v0.60.0
 
-      - name: Write GEE key to file
-        env:
-          EE_KEY_JSON: ${{ secrets.EE_KEY_JSON }}
-        if: env.EE_KEY_JSON != ''
-        run: |
-          echo "${{ secrets.EE_KEY_JSON }}" > gee-key.json
-
       - name: Run all workflow test cases
         shell: bash
         env:
-          # Add your GitHub secrets here
-          # They will be available to the workflow
-          ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER: ${{ secrets.ER_SERVER }}
-          ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD: ${{ secrets.ER_PASSWORD }}
-          ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME: ${{ secrets.ER_USERNAME }}
+          # SMART API connection for Mara Triangle
+          ECOSCOPE_WORKFLOWS__CONNECTIONS__SMART__MARA_TRIANGLE__SERVER: ${{ secrets.SMART_SERVER }}
+          ECOSCOPE_WORKFLOWS__CONNECTIONS__SMART__MARA_TRIANGLE__USERNAME: ${{ secrets.SMART_USERNAME }}
+          ECOSCOPE_WORKFLOWS__CONNECTIONS__SMART__MARA_TRIANGLE__PASSWORD: ${{ secrets.SMART_PASSWORD }}
         run: |
           chmod +x dev/pytest-cli.sh || true
           pixi run --manifest-path pixi.toml -e default bash dev/pytest-cli.sh ${{ needs.discover.outputs.workflow_id }} --all
