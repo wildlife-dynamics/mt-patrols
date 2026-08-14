@@ -472,6 +472,28 @@
       "type": "object",
       "required": [],
       "title": "Base Maps"
+    },
+    "create_patrol_report": {
+      "additionalProperties": false,
+      "properties": {
+        "template_path": {
+          "title": "Template Path",
+          "type": "string",
+          "description": "Path or URL to the Word template (.docx) file with Jinja2 placeholders. Supports local paths and remote URLs (http://, https://)."
+        },
+        "skip": {
+          "default": false,
+          "title": "Skip",
+          "type": "boolean",
+          "description": "Skip report generation entirely when True.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [
+        "template_path"
+      ],
+      "type": "object",
+      "title": "Create Patrol Report"
     }
   },
   "$defs": {
@@ -592,6 +614,12 @@
         "right_index"
       ]
     },
+    "create_patrol_report": {
+      "ui:order": [
+        "template_path",
+        "skip"
+      ]
+    },
     "ui:order": [
       "workflow_details",
       "time_range",
@@ -604,7 +632,8 @@
       "patrol_traj",
       "traj_with_attributes",
       "persist_patrol_traj",
-      "base_map_defs"
+      "base_map_defs",
+      "create_patrol_report"
     ]
   },
   "additionalProperties": false

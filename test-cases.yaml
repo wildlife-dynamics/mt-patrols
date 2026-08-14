@@ -42,3 +42,7 @@ base:
       base_maps:
         - layer_name: "TERRAIN"
           opacity: 1
+    create_patrol_report:
+      # Phase 2: local template (the raw.githubusercontent URL only serves the
+      # redesigned template once merged to main — switch before publish)
+      template_path: "/Users/yunwu/MEP/wt-workflows/mt-patrols/resources/templates/mt_patrols_report_template.docx"

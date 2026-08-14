@@ -59,6 +59,7 @@ rjsf-overrides:
     Generate Maps.properties.base_map_defs.properties.base_maps.default:
       - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
         opacity: 1
+    create_patrol_report.properties.template_path.default: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx"
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
@@ -748,6 +749,65 @@ workflow:
         skipif:
           conditions:
             - never
+
+  # create_docx sorting requires a grouper for every index_name appearing in
+  # any grouped context item: area (summaries), area+mandate (maps),
+  # area+team (ranger tables). With multiple groupers, item titles take the
+  # labeled form "Patrol Area: X, Patrol Mandate: Y" — the template relies on
+  # that exact format for its per-area grouping.
+  - name: Set Report Groupers
+    id: report_groupers
+    task: set_groupers
+    partial:
+      groupers:
+        - index_name: "patrol_area"
+        - index_name: "patrol_mandate"
+        - index_name: "team_name"
+
+  - name: Create Patrol Report
+    id: create_patrol_report
+    task: ecoscope_workflows_ext_custom.tasks.results.create_docx
+    partial:
+      context:
+        items:
+          - item_type: timerange
+            key: report_date
+            value: ${{ workflow.time_range.return }}
+            format: "%b %Y"
+          # Chapter 1: Trajectory Maps — keyed by patrol_area, patrol_mandate
+          - item_type: image
+            key: patrol_maps
+            value: ${{ workflow.traj_ecomap_html_urls.return }}
+            screenshot_config:
+              wait_for_timeout: 20000
+              max_concurrent_pages: 2
+              device_scale_factor: 1.0
+          # Chapter 2: Patrol Summary — keyed by patrol_area
+          - item_type: table
+            key: transport_summary
+            value: ${{ workflow.transport_summary.return }}
+          - item_type: table
+            key: mandate_summary
+            value: ${{ workflow.mandate_summary.return }}
+          - item_type: table
+            key: team_summary
+            value: ${{ workflow.team_summary.return }}
+          - item_type: image
+            key: team_bar_chart
+            value: ${{ workflow.persist_bar_chart.return }}
+            screenshot_config:
+              wait_for_timeout: 0
+              max_concurrent_pages: 2
+          # Chapter 3: Ranger Summary — keyed by patrol_area, team_name
+          - item_type: table
+            key: ranger_summary
+            value: ${{ workflow.ranger_summary.return }}
+      groupers: ${{ workflow.report_groupers.return }}
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_prefix: mt_patrols_report
+    skipif:
+      conditions:
+        - never
 
   - name: Create Dashboard
     id: patrol_dashboard

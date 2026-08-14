@@ -56,6 +56,7 @@ from ecoscope.platform.tasks.transformation import (
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
 from ecoscope.platform.tasks.transformation import map_values as map_values
 from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
+from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     combine_string_lists as combine_string_lists,
 )
@@ -1325,6 +1326,100 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             **(params.get("persist_ranger_summary") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=ranger_summary)
+    )
+
+    report_groupers = (
+        task(set_groupers)
+        .validate()
+        .set_task_instance_id("report_groupers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupers=[
+                {"index_name": "patrol_area"},
+                {"index_name": "patrol_mandate"},
+                {"index_name": "team_name"},
+            ],
+            **(params.get("report_groupers") or {}),
+        )
+        .call()
+    )
+
+    create_patrol_report = (
+        task(create_docx)
+        .validate()
+        .set_task_instance_id("create_patrol_report")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            context={
+                "items": [
+                    {
+                        "item_type": "timerange",
+                        "key": "report_date",
+                        "value": time_range,
+                        "format": "%b %Y",
+                    },
+                    {
+                        "item_type": "image",
+                        "key": "patrol_maps",
+                        "value": traj_ecomap_html_urls,
+                        "screenshot_config": {
+                            "wait_for_timeout": 20000,
+                            "max_concurrent_pages": 2,
+                            "device_scale_factor": 1.0,
+                        },
+                    },
+                    {
+                        "item_type": "table",
+                        "key": "transport_summary",
+                        "value": transport_summary,
+                    },
+                    {
+                        "item_type": "table",
+                        "key": "mandate_summary",
+                        "value": mandate_summary,
+                    },
+                    {
+                        "item_type": "table",
+                        "key": "team_summary",
+                        "value": team_summary,
+                    },
+                    {
+                        "item_type": "image",
+                        "key": "team_bar_chart",
+                        "value": persist_bar_chart,
+                        "screenshot_config": {
+                            "wait_for_timeout": 0,
+                            "max_concurrent_pages": 2,
+                        },
+                    },
+                    {
+                        "item_type": "table",
+                        "key": "ranger_summary",
+                        "value": ranger_summary,
+                    },
+                ]
+            },
+            groupers=report_groupers,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="mt_patrols_report",
+            **(params.get("create_patrol_report") or {}),
+        )
+        .call()
     )
 
     patrol_dashboard = (

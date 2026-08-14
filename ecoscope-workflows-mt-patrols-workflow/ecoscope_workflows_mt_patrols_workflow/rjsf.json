@@ -518,6 +518,29 @@
           "title": "Base Maps"
         }
       }
+    },
+    "create_patrol_report": {
+      "additionalProperties": false,
+      "properties": {
+        "template_path": {
+          "title": "Template Path",
+          "type": "string",
+          "description": "Path or URL to the Word template (.docx) file with Jinja2 placeholders. Supports local paths and remote URLs (http://, https://).",
+          "default": "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx"
+        },
+        "skip": {
+          "default": false,
+          "title": "Skip",
+          "type": "boolean",
+          "description": "Skip report generation entirely when True.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [
+        "template_path"
+      ],
+      "type": "object",
+      "title": "Create Patrol Report"
     }
   },
   "$defs": {
@@ -662,6 +685,12 @@
         }
       }
     },
+    "create_patrol_report": {
+      "ui:order": [
+        "template_path",
+        "skip"
+      ]
+    },
     "ui:order": [
       "workflow_details",
       "time_range",
@@ -671,7 +700,8 @@
       "Patrol Attributes",
       "Process Patrol Observations",
       "persist_patrol_traj",
-      "Generate Maps"
+      "Generate Maps",
+      "create_patrol_report"
     ]
   },
   "additionalProperties": false
