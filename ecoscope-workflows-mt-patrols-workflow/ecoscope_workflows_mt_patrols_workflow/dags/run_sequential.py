@@ -2,6 +2,7 @@
 import os
 from typing import Any
 
+from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
 from ecoscope.platform.tasks.config import (
     set_list_of_string_vars as set_list_of_string_vars,
 )
@@ -11,12 +12,21 @@ from ecoscope.platform.tasks.filter import (
     get_timezone_from_time_range as get_timezone_from_time_range,
 )
 from ecoscope.platform.tasks.filter import set_time_range as set_time_range
+from ecoscope.platform.tasks.groupby import set_groupers as set_groupers
 from ecoscope.platform.tasks.groupby import split_groups as split_groups
 from ecoscope.platform.tasks.io import persist_df_wrapper as persist_df_wrapper
+from ecoscope.platform.tasks.io import persist_text as persist_text
 from ecoscope.platform.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
+from ecoscope.platform.tasks.results import (
+    create_polyline_layer as create_polyline_layer,
+)
+from ecoscope.platform.tasks.results import draw_bar_chart as draw_bar_chart
+from ecoscope.platform.tasks.results import draw_ecomap as draw_ecomap
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
+from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
+from ecoscope.platform.tasks.skip import all_geometry_are_none as all_geometry_are_none
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
@@ -812,6 +822,509 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             **(params.get("persist_patrol_traj") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_by_area)
+    )
+
+    set_patrol_map_title = (
+        task(set_string_var)
+        .validate()
+        .set_task_instance_id("set_patrol_map_title")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            var="Patrol Trajectories Map", **(params.get("set_patrol_map_title") or {})
+        )
+        .call()
+    )
+
+    base_map_defs = (
+        task(set_base_maps)
+        .validate()
+        .set_task_instance_id("base_map_defs")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("base_map_defs") or {}))
+        .call()
+    )
+
+    rename_traj_display_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_traj_display_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            raise_if_not_found=False,
+            rename_columns={
+                "segment_start": "Start Time",
+                "timespan_seconds": "Duration (s)",
+                "speed_kmhr": "Speed (kph)",
+                "team_name": "Team",
+                "ranger_name": "Ranger",
+            },
+            **(params.get("rename_traj_display_columns") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_map_groups)
+    )
+
+    patrol_traj_map_layers = (
+        task(create_polyline_layer)
+        .validate()
+        .set_task_instance_id("patrol_traj_map_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+                all_geometry_are_none,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_width": 3,
+                "width_units": "pixels",
+                "color_column": "team_colormap",
+            },
+            legend={"label_column": "Team", "color_column": "team_colormap"},
+            tooltip_columns=[
+                "Team",
+                "Ranger",
+                "Start Time",
+                "Duration (s)",
+                "Speed (kph)",
+            ],
+            **(params.get("patrol_traj_map_layers") or {}),
+        )
+        .mapvalues(argnames=["geodataframe"], argvalues=rename_traj_display_columns)
+    )
+
+    traj_ecomap = (
+        task(draw_ecomap)
+        .validate()
+        .set_task_instance_id("traj_ecomap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title=None,
+            tile_layers=base_map_defs,
+            north_arrow_style={"placement": "top-left"},
+            legend_style={"placement": "bottom-right"},
+            static=False,
+            max_zoom=20,
+            **(params.get("traj_ecomap") or {}),
+        )
+        .mapvalues(argnames=["geo_layers"], argvalues=patrol_traj_map_layers)
+    )
+
+    traj_ecomap_html_urls = (
+        task(persist_text)
+        .validate()
+        .set_task_instance_id("traj_ecomap_html_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_suffix="patrol_map",
+            **(params.get("traj_ecomap_html_urls") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=traj_ecomap)
+    )
+
+    transport_summary = (
+        task(summarize_df)
+        .validate()
+        .set_task_instance_id("transport_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["patrol_transport"],
+            summary_params=[
+                {
+                    "display_name": "Patrol Count",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "Total Duration (hours)",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                    "decimal_places": 1,
+                },
+            ],
+            reset_index=False,
+            **(params.get("transport_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_by_area)
+    )
+
+    mandate_summary = (
+        task(summarize_df)
+        .validate()
+        .set_task_instance_id("mandate_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["patrol_mandate"],
+            summary_params=[
+                {
+                    "display_name": "Patrol Count",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "Total Duration (hours)",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                    "decimal_places": 1,
+                },
+            ],
+            reset_index=False,
+            **(params.get("mandate_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_by_area)
+    )
+
+    team_summary = (
+        task(summarize_df)
+        .validate()
+        .set_task_instance_id("team_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["team_name"],
+            summary_params=[
+                {
+                    "display_name": "Patrol Count",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "Total Duration (hours)",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                    "decimal_places": 1,
+                },
+            ],
+            reset_index=True,
+            **(params.get("team_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_by_area)
+    )
+
+    patrol_bar_chart = (
+        task(draw_bar_chart)
+        .validate()
+        .set_task_instance_id("patrol_bar_chart")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            category="team_name",
+            layout_kwargs=None,
+            bar_chart_configs=[
+                {
+                    "label": "Total Distance (km)",
+                    "column": "Total Distance (km)",
+                    "agg_func": "sum",
+                    "show_label": True,
+                    "style": {"marker_color": "#35b779"},
+                },
+                {
+                    "label": "Total Duration (hours)",
+                    "column": "Total Duration (hours)",
+                    "agg_func": "sum",
+                    "show_label": True,
+                    "style": {"marker_color": "#31688e"},
+                },
+            ],
+            **(params.get("patrol_bar_chart") or {}),
+        )
+        .mapvalues(argnames=["dataframe"], argvalues=team_summary)
+    )
+
+    persist_bar_chart = (
+        task(persist_text)
+        .validate()
+        .set_task_instance_id("persist_bar_chart")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_suffix="team_bar_chart",
+            **(params.get("persist_bar_chart") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=patrol_bar_chart)
+    )
+
+    persist_transport_summary = (
+        task(persist_df_wrapper)
+        .validate()
+        .set_task_instance_id("persist_transport_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="transport_summary",
+            filetypes=["csv"],
+            sanitize=True,
+            **(params.get("persist_transport_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=transport_summary)
+    )
+
+    persist_mandate_summary = (
+        task(persist_df_wrapper)
+        .validate()
+        .set_task_instance_id("persist_mandate_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="mandate_summary",
+            filetypes=["csv"],
+            sanitize=True,
+            **(params.get("persist_mandate_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=mandate_summary)
+    )
+
+    persist_team_summary = (
+        task(persist_df_wrapper)
+        .validate()
+        .set_task_instance_id("persist_team_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="team_summary",
+            filetypes=["csv"],
+            sanitize=True,
+            **(params.get("persist_team_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=team_summary)
+    )
+
+    ranger_groupers = (
+        task(set_groupers)
+        .validate()
+        .set_task_instance_id("ranger_groupers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupers=[{"index_name": "patrol_area"}, {"index_name": "team_name"}],
+            **(params.get("ranger_groupers") or {}),
+        )
+        .call()
+    )
+
+    split_by_area_team = (
+        task(split_groups)
+        .validate()
+        .set_task_instance_id("split_by_area_team")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=traj_colormap,
+            groupers=ranger_groupers,
+            **(params.get("split_by_area_team") or {}),
+        )
+        .call()
+    )
+
+    ranger_summary = (
+        task(summarize_df)
+        .validate()
+        .set_task_instance_id("ranger_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["ranger_name"],
+            summary_params=[
+                {
+                    "display_name": "Patrol Count",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Total Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "Total Duration (hours)",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                    "decimal_places": 1,
+                },
+            ],
+            reset_index=False,
+            **(params.get("ranger_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_by_area_team)
+    )
+
+    persist_ranger_summary = (
+        task(persist_df_wrapper)
+        .validate()
+        .set_task_instance_id("persist_ranger_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename_prefix="ranger_summary",
+            filetypes=["csv"],
+            sanitize=True,
+            **(params.get("persist_ranger_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=ranger_summary)
     )
 
     patrol_dashboard = (

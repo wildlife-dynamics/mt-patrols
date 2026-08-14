@@ -38,3 +38,7 @@ base:
       file_path: "/Users/yunwu/MEP/wt-workflows/mt-patrols/resources/mock-data/mmnr_patrol_info_events.parquet"
     persist_patrol_traj:
       filetypes: ["parquet"]
+    base_map_defs:
+      base_maps:
+        - layer_name: "TERRAIN"
+          opacity: 1

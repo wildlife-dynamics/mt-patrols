@@ -56,6 +56,9 @@ rjsf-overrides:
       max_speed_kmhr: 500
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
     persist_patrol_traj.properties.filetypes.items.enum: ["csv", "parquet"]
+    Generate Maps.properties.base_map_defs.properties.base_maps.default:
+      - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+        opacity: 1
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
@@ -451,6 +454,300 @@ workflow:
     skipif:
       conditions:
         - never
+
+  - title: Generate Maps
+    type: task-group
+    description: "Trajectory maps per patrol area and mandate, colored by team."
+    tasks:
+      - name: Set Patrol Map Title
+        id: set_patrol_map_title
+        task: set_string_var
+        partial:
+          var: "Patrol Trajectories Map"
+
+      - name: Base Maps
+        id: base_map_defs
+        task: set_base_maps
+
+      - name: Rename Trajectory Columns for Display
+        id: rename_traj_display_columns
+        task: map_columns
+        partial:
+          drop_columns: []
+          retain_columns: []
+          raise_if_not_found: false
+          rename_columns:
+            segment_start: "Start Time"
+            timespan_seconds: "Duration (s)"
+            speed_kmhr: "Speed (kph)"
+            team_name: "Team"
+            ranger_name: "Ranger"
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_map_groups.return }}
+
+      - name: Create Trajectory Map Layers
+        id: patrol_traj_map_layers
+        task: create_polyline_layer
+        skipif:
+          conditions:
+            - any_is_empty_df
+            - any_dependency_skipped
+            - all_geometry_are_none
+        partial:
+          layer_style:
+            get_width: 3
+            width_units: "pixels"
+            color_column: "team_colormap"
+          legend:
+            label_column: "Team"
+            color_column: "team_colormap"
+          tooltip_columns: ["Team", "Ranger", "Start Time", "Duration (s)", "Speed (kph)"]
+        mapvalues:
+          argnames: geodataframe
+          argvalues: ${{ workflow.rename_traj_display_columns.return }}
+
+      - name: Draw Ecomaps
+        id: traj_ecomap
+        task: draw_ecomap
+        partial:
+          title: null
+          tile_layers: ${{ workflow.base_map_defs.return }}
+          north_arrow_style:
+            placement: "top-left"
+          legend_style:
+            placement: "bottom-right"
+          static: false
+          max_zoom: 20
+        mapvalues:
+          argnames: geo_layers
+          argvalues: ${{ workflow.patrol_traj_map_layers.return }}
+
+      - name: Persist Ecomaps
+        id: traj_ecomap_html_urls
+        task: persist_text
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_suffix: "patrol_map"
+        mapvalues:
+          argnames: text
+          argvalues: ${{ workflow.traj_ecomap.return }}
+
+  - title: Patrol Summary
+    type: task-group
+    description: "Per-area summaries: transport, mandate, team totals, and a team bar chart."
+    tasks:
+      - name: Summarize by Transport
+        id: transport_summary
+        task: summarize_df
+        partial:
+          groupby_cols: ["patrol_transport"]
+          summary_params:
+            - display_name: "Patrol Count"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+            - display_name: "Total Duration (hours)"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+              decimal_places: 1
+          reset_index: false
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_by_area.return }}
+
+      - name: Summarize by Mandate
+        id: mandate_summary
+        task: summarize_df
+        partial:
+          groupby_cols: ["patrol_mandate"]
+          summary_params:
+            - display_name: "Patrol Count"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+            - display_name: "Total Duration (hours)"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+              decimal_places: 1
+          reset_index: false
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_by_area.return }}
+
+      - name: Summarize by Team
+        id: team_summary
+        task: summarize_df
+        partial:
+          groupby_cols: ["team_name"]
+          summary_params:
+            - display_name: "Patrol Count"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+            - display_name: "Total Duration (hours)"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+              decimal_places: 1
+          reset_index: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_by_area.return }}
+
+      - name: Draw Team Bar Chart
+        id: patrol_bar_chart
+        task: draw_bar_chart
+        partial:
+          category: "team_name"
+          layout_kwargs: null
+          bar_chart_configs:
+            - label: "Total Distance (km)"
+              column: "Total Distance (km)"
+              agg_func: "sum"
+              show_label: true
+              style:
+                marker_color: "#35b779"
+            - label: "Total Duration (hours)"
+              column: "Total Duration (hours)"
+              agg_func: "sum"
+              show_label: true
+              style:
+                marker_color: "#31688e"
+        mapvalues:
+          argnames: dataframe
+          argvalues: ${{ workflow.team_summary.return }}
+
+      - name: Persist Bar Chart
+        id: persist_bar_chart
+        task: persist_text
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_suffix: "team_bar_chart"
+        mapvalues:
+          argnames: text
+          argvalues: ${{ workflow.patrol_bar_chart.return }}
+
+      - name: Persist Transport Summary
+        id: persist_transport_summary
+        task: persist_df_wrapper
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "transport_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.transport_summary.return }}
+        skipif:
+          conditions:
+            - never
+
+      - name: Persist Mandate Summary
+        id: persist_mandate_summary
+        task: persist_df_wrapper
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "mandate_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.mandate_summary.return }}
+        skipif:
+          conditions:
+            - never
+
+      - name: Persist Team Summary
+        id: persist_team_summary
+        task: persist_df_wrapper
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "team_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.team_summary.return }}
+        skipif:
+          conditions:
+            - never
+
+  - title: Ranger Summary
+    type: task-group
+    description: "Ranger patrol activity, one table per team within each patrol area."
+    tasks:
+      - name: Set Ranger Groupers
+        id: ranger_groupers
+        task: set_groupers
+        partial:
+          groupers:
+            - index_name: "patrol_area"
+            - index_name: "team_name"
+
+      - name: Split by Area and Team
+        id: split_by_area_team
+        task: split_groups
+        partial:
+          df: ${{ workflow.traj_colormap.return }}
+          groupers: ${{ workflow.ranger_groupers.return }}
+
+      - name: Summarize Rangers per Team
+        id: ranger_summary
+        task: summarize_df
+        partial:
+          groupby_cols: ["ranger_name"]
+          summary_params:
+            - display_name: "Patrol Count"
+              aggregator: nunique
+              column: patrol_id
+            - display_name: "Total Distance (km)"
+              aggregator: sum
+              column: dist_meters
+              original_unit: "m"
+              new_unit: "km"
+            - display_name: "Total Duration (hours)"
+              aggregator: sum
+              column: timespan_seconds
+              original_unit: "s"
+              new_unit: "h"
+              decimal_places: 1
+          reset_index: false
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.split_by_area_team.return }}
+
+      - name: Persist Ranger Summary
+        id: persist_ranger_summary
+        task: persist_df_wrapper
+        partial:
+          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+          filename_prefix: "ranger_summary"
+          filetypes: ["csv"]
+          sanitize: true
+        mapvalues:
+          argnames: df
+          argvalues: ${{ workflow.ranger_summary.return }}
+        skipif:
+          conditions:
+            - never
 
   - name: Create Dashboard
     id: patrol_dashboard
