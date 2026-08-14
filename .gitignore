@@ -166,6 +166,7 @@ cython_debug/
 .DS_Store
 .claude
 .env
+.scratch/
 
 # Word
 ~$*

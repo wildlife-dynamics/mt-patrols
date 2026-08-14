@@ -20,7 +20,7 @@ base:
       filetypes: ["parquet"]
     base_map_defs:
       base_maps:
-        - layer_name: "TOPO"
+        - layer_name: "TERRAIN"
           opacity: 1
     create_patrol_report:
       template_path: https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx

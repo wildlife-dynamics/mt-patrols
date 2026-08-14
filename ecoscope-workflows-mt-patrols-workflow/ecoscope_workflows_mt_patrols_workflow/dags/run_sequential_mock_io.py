@@ -7,82 +7,74 @@ Lines specific to the testing context are marked with a test tube emoji (🧪) t
 that they would not be included (or would be different) in the production version of this file.
 """
 
-import json
 import os
 import warnings  # 🧪
+from typing import Any
 
-from ecoscope_workflows_core.tasks.config import (
-    set_workflow_details as set_workflow_details,
-)
-from ecoscope_workflows_core.tasks.filter import set_time_range as set_time_range
-from ecoscope_workflows_core.tasks.io import (
-    set_smart_connection as set_smart_connection,
-)
-from ecoscope_workflows_core.tasks.skip import (
+from ecoscope.platform.tasks.config import set_workflow_details as set_workflow_details
+from ecoscope.platform.tasks.filter import set_time_range as set_time_range
+from ecoscope.platform.tasks.io import set_smart_connection as set_smart_connection
+from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
-from ecoscope_workflows_core.tasks.skip import any_is_empty_df as any_is_empty_df
-from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
+from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
+from wt_contracts import validate as _validate
+from wt_task import task
+from wt_task.testing import create_func_magicmock  # 🧪
 
-get_patrol_observations_from_smart = create_task_magicmock(  # 🧪
-    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
+from .. import metadata as _metadata
+
+get_patrol_observations_from_smart = create_func_magicmock(  # 🧪
+    anchor="ecoscope.platform.tasks.io",  # 🧪
     func_name="get_patrol_observations_from_smart",  # 🧪
 )  # 🧪
-from ecoscope_workflows_core.tasks.config import set_string_var as set_string_var
-from ecoscope_workflows_core.tasks.filter import (
+from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
+from ecoscope.platform.tasks.config import set_string_var as set_string_var
+from ecoscope.platform.tasks.filter import (
     get_timezone_from_time_range as get_timezone_from_time_range,
 )
-from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
-from ecoscope_workflows_core.tasks.groupby import split_groups as split_groups
-from ecoscope_workflows_core.tasks.io import persist_text as persist_text
-from ecoscope_workflows_core.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope_workflows_core.tasks.skip import never as never
-from ecoscope_workflows_core.tasks.transformation import (
-    add_temporal_index as add_temporal_index,
-)
-from ecoscope_workflows_core.tasks.transformation import (
-    convert_values_to_timezone as convert_values_to_timezone,
-)
-from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
-from ecoscope_workflows_ext_custom.tasks.io import (
-    persist_df_wrapper as persist_df_wrapper,
-)
-from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_column_prefix as drop_column_prefix,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
-from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
+from ecoscope.platform.tasks.groupby import set_groupers as set_groupers
+from ecoscope.platform.tasks.groupby import split_groups as split_groups
+from ecoscope.platform.tasks.io import persist_df_wrapper as persist_df_wrapper
+from ecoscope.platform.tasks.io import persist_text as persist_text
+from ecoscope.platform.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import (
+from ecoscope.platform.tasks.results import (
     create_polyline_layer as create_polyline_layer,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import (
-    draw_bar_chart as draw_bar_chart,
+from ecoscope.platform.tasks.results import draw_bar_chart as draw_bar_chart
+from ecoscope.platform.tasks.results import draw_ecomap as draw_ecomap
+from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
+from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
+from ecoscope.platform.tasks.skip import all_geometry_are_none as all_geometry_are_none
+from ecoscope.platform.tasks.skip import never as never
+from ecoscope.platform.tasks.transformation import (
+    add_temporal_index as add_temporal_index,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap as draw_ecomap
-from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps as set_base_maps
-from ecoscope_workflows_ext_ecoscope.tasks.skip import (
-    all_geometry_are_none as all_geometry_are_none,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
-    apply_color_map as apply_color_map,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+from ecoscope.platform.tasks.transformation import apply_color_map as apply_color_map
+from ecoscope.platform.tasks.transformation import (
     apply_reloc_coord_filter as apply_reloc_coord_filter,
 )
+from ecoscope.platform.tasks.transformation import (
+    convert_values_to_timezone as convert_values_to_timezone,
+)
+from ecoscope.platform.tasks.transformation import (
+    drop_column_prefix as drop_column_prefix,
+)
+from ecoscope.platform.tasks.transformation import map_columns as map_columns
+from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
 
-from ..params import Params
 
-
-def main(params: Params):
+def main(params: dict[str, Any], validate_params_schema: bool = True):
     warnings.warn("This test script should not be used in production!")  # 🧪
 
-    params_dict = json.loads(params.model_dump_json(exclude_unset=True))
+    if validate_params_schema:
+        _validate(params, _metadata.load_params_schema())
 
     workflow_details = (
-        set_workflow_details.validate()
+        task(set_workflow_details)
+        .validate()
         .set_task_instance_id("workflow_details")
         .handle_errors()
         .with_tracing()
@@ -93,12 +85,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(**(params_dict.get("workflow_details") or {}))
+        .partial(**(params.get("workflow_details") or {}))
         .call()
     )
 
     smart_client_name = (
-        set_smart_connection.validate()
+        task(set_smart_connection)
+        .validate()
         .set_task_instance_id("smart_client_name")
         .handle_errors()
         .with_tracing()
@@ -109,12 +102,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(**(params_dict.get("smart_client_name") or {}))
+        .partial(**(params.get("smart_client_name") or {}))
         .call()
     )
 
     time_range = (
-        set_time_range.validate()
+        task(set_time_range)
+        .validate()
         .set_task_instance_id("time_range")
         .handle_errors()
         .with_tracing()
@@ -125,14 +119,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(
-            time_format="%d %b %Y %H:%M:%S %Z", **(params_dict.get("time_range") or {})
-        )
+        .partial(time_format="%d %b %Y %H:%M:%S %Z", **(params.get("time_range") or {}))
         .call()
     )
 
     patrol_obs = (
-        get_patrol_observations_from_smart.validate()
+        task(get_patrol_observations_from_smart)
+        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
         .set_task_instance_id("patrol_obs")
         .handle_errors()
         .with_tracing()
@@ -150,13 +143,14 @@ def main(params: Params):
             language_uuid="13451893-86af-4ec0-beac-2b8e0c2482b5",
             patrol_mandate=None,
             patrol_transport=None,
-            **(params_dict.get("patrol_obs") or {}),
+            **(params.get("patrol_obs") or {}),
         )
         .call()
     )
 
     get_timezone = (
-        get_timezone_from_time_range.validate()
+        task(get_timezone_from_time_range)
+        .validate()
         .set_task_instance_id("get_timezone")
         .handle_errors()
         .with_tracing()
@@ -167,12 +161,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(time_range=time_range, **(params_dict.get("get_timezone") or {}))
+        .partial(time_range=time_range, **(params.get("get_timezone") or {}))
         .call()
     )
 
     convert_patrols_to_user_timezone = (
-        convert_values_to_timezone.validate()
+        task(convert_values_to_timezone)
+        .validate()
         .set_task_instance_id("convert_patrols_to_user_timezone")
         .handle_errors()
         .with_tracing()
@@ -187,13 +182,14 @@ def main(params: Params):
             df=patrol_obs,
             timezone=get_timezone,
             columns=["fixtime"],
-            **(params_dict.get("convert_patrols_to_user_timezone") or {}),
+            **(params.get("convert_patrols_to_user_timezone") or {}),
         )
         .call()
     )
 
     drop_extra_prefix_obs = (
-        drop_column_prefix.validate()
+        task(drop_column_prefix)
+        .validate()
         .set_task_instance_id("drop_extra_prefix_obs")
         .handle_errors()
         .with_tracing()
@@ -208,13 +204,14 @@ def main(params: Params):
             df=convert_patrols_to_user_timezone,
             prefix="extra__",
             duplicate_strategy="suffix",
-            **(params_dict.get("drop_extra_prefix_obs") or {}),
+            **(params.get("drop_extra_prefix_obs") or {}),
         )
         .call()
     )
 
     filter_patrol_obs = (
-        apply_reloc_coord_filter.validate()
+        task(apply_reloc_coord_filter)
+        .validate()
         .set_task_instance_id("filter_patrol_obs")
         .handle_errors()
         .with_tracing()
@@ -241,13 +238,14 @@ def main(params: Params):
                 {"x": 0.0, "y": 0.0},
                 {"x": 1.0, "y": 1.0},
             ],
-            **(params_dict.get("filter_patrol_obs") or {}),
+            **(params.get("filter_patrol_obs") or {}),
         )
         .call()
     )
 
     patrol_traj = (
-        relocations_to_trajectory.validate()
+        task(relocations_to_trajectory)
+        .validate()
         .set_task_instance_id("patrol_traj")
         .handle_errors()
         .with_tracing()
@@ -258,14 +256,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(
-            relocations=filter_patrol_obs, **(params_dict.get("patrol_traj") or {})
-        )
+        .partial(relocations=filter_patrol_obs, **(params.get("patrol_traj") or {}))
         .call()
     )
 
     drop_extra_prefix_traj = (
-        drop_column_prefix.validate()
+        task(drop_column_prefix)
+        .validate()
         .set_task_instance_id("drop_extra_prefix_traj")
         .handle_errors()
         .with_tracing()
@@ -280,13 +277,14 @@ def main(params: Params):
             df=patrol_traj,
             prefix="extra__",
             duplicate_strategy="suffix",
-            **(params_dict.get("drop_extra_prefix_traj") or {}),
+            **(params.get("drop_extra_prefix_traj") or {}),
         )
         .call()
     )
 
     customize_columns_internally = (
-        map_columns.validate()
+        task(map_columns)
+        .validate()
         .set_task_instance_id("customize_columns_internally")
         .handle_errors()
         .with_tracing()
@@ -303,13 +301,14 @@ def main(params: Params):
             drop_columns=["id", "track"],
             retain_columns=[],
             raise_if_not_found=False,
-            **(params_dict.get("customize_columns_internally") or {}),
+            **(params.get("customize_columns_internally") or {}),
         )
         .call()
     )
 
     traj_add_temporal_index = (
-        add_temporal_index.validate()
+        task(add_temporal_index)
+        .validate()
         .set_task_instance_id("traj_add_temporal_index")
         .handle_errors()
         .with_tracing()
@@ -326,13 +325,14 @@ def main(params: Params):
             groupers=[{"index_name": "patrol_mandate"}],
             cast_to_datetime=True,
             format="mixed",
-            **(params_dict.get("traj_add_temporal_index") or {}),
+            **(params.get("traj_add_temporal_index") or {}),
         )
         .call()
     )
 
     traj_colormap = (
-        apply_color_map.validate()
+        task(apply_color_map)
+        .validate()
         .set_task_instance_id("traj_colormap")
         .handle_errors()
         .with_tracing()
@@ -365,13 +365,14 @@ def main(params: Params):
             ],
             input_column_name="station",
             output_column_name="patrol_traj_colormap",
-            **(params_dict.get("traj_colormap") or {}),
+            **(params.get("traj_colormap") or {}),
         )
         .call()
     )
 
     split_patrol_traj_groups = (
-        split_groups.validate()
+        task(split_groups)
+        .validate()
         .set_task_instance_id("split_patrol_traj_groups")
         .handle_errors()
         .with_tracing()
@@ -385,13 +386,14 @@ def main(params: Params):
         .partial(
             df=traj_colormap,
             groupers=[{"index_name": "patrol_mandate"}],
-            **(params_dict.get("split_patrol_traj_groups") or {}),
+            **(params.get("split_patrol_traj_groups") or {}),
         )
         .call()
     )
 
     persist_patrol_traj = (
-        persist_df_wrapper.validate()
+        task(persist_df_wrapper)
+        .validate()
         .set_task_instance_id("persist_patrol_traj")
         .handle_errors()
         .with_tracing()
@@ -405,13 +407,14 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filename_prefix="patrol_trajectories",
             sanitize=True,
-            **(params_dict.get("persist_patrol_traj") or {}),
+            **(params.get("persist_patrol_traj") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
     )
 
     set_patrol_map_title = (
-        set_string_var.validate()
+        task(set_string_var)
+        .validate()
         .set_task_instance_id("set_patrol_map_title")
         .handle_errors()
         .with_tracing()
@@ -423,14 +426,14 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            var="Patrol Trajectories Map",
-            **(params_dict.get("set_patrol_map_title") or {}),
+            var="Patrol Trajectories Map", **(params.get("set_patrol_map_title") or {})
         )
         .call()
     )
 
     base_map_defs = (
-        set_base_maps.validate()
+        task(set_base_maps)
+        .validate()
         .set_task_instance_id("base_map_defs")
         .handle_errors()
         .with_tracing()
@@ -441,12 +444,13 @@ def main(params: Params):
             ],
             unpack_depth=1,
         )
-        .partial(**(params_dict.get("base_map_defs") or {}))
+        .partial(**(params.get("base_map_defs") or {}))
         .call()
     )
 
     rename_traj_display_columns = (
-        map_columns.validate()
+        task(map_columns)
+        .validate()
         .set_task_instance_id("rename_traj_display_columns")
         .handle_errors()
         .with_tracing()
@@ -466,13 +470,14 @@ def main(params: Params):
                 "timespan_seconds": "Duration (s)",
                 "speed_kmhr": "Speed (kph)",
             },
-            **(params_dict.get("rename_traj_display_columns") or {}),
+            **(params.get("rename_traj_display_columns") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
     )
 
     patrol_traj_map_layers = (
-        create_polyline_layer.validate()
+        task(create_polyline_layer)
+        .validate()
         .set_task_instance_id("patrol_traj_map_layers")
         .handle_errors()
         .with_tracing()
@@ -492,13 +497,14 @@ def main(params: Params):
             },
             legend={"label_column": "station", "color_column": "patrol_traj_colormap"},
             tooltip_columns=["Start Time", "Duration (s)", "Speed (kph)"],
-            **(params_dict.get("patrol_traj_map_layers") or {}),
+            **(params.get("patrol_traj_map_layers") or {}),
         )
         .mapvalues(argnames=["geodataframe"], argvalues=rename_traj_display_columns)
     )
 
     traj_ecomap = (
-        draw_ecomap.validate()
+        task(draw_ecomap)
+        .validate()
         .set_task_instance_id("traj_ecomap")
         .handle_errors()
         .with_tracing()
@@ -516,13 +522,14 @@ def main(params: Params):
             legend_style={"placement": "bottom-right"},
             static=False,
             max_zoom=20,
-            **(params_dict.get("traj_ecomap") or {}),
+            **(params.get("traj_ecomap") or {}),
         )
         .mapvalues(argnames=["geo_layers"], argvalues=patrol_traj_map_layers)
     )
 
     traj_ecomap_html_urls = (
-        persist_text.validate()
+        task(persist_text)
+        .validate()
         .set_task_instance_id("traj_ecomap_html_urls")
         .handle_errors()
         .with_tracing()
@@ -536,13 +543,14 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filename_suffix="patrol_map",
-            **(params_dict.get("traj_ecomap_html_urls") or {}),
+            **(params.get("traj_ecomap_html_urls") or {}),
         )
         .mapvalues(argnames=["text"], argvalues=traj_ecomap)
     )
 
     transport_summary = (
-        summarize_df.validate()
+        task(summarize_df)
+        .validate()
         .set_task_instance_id("transport_summary")
         .handle_errors()
         .with_tracing()
@@ -579,13 +587,14 @@ def main(params: Params):
                 },
             ],
             reset_index=False,
-            **(params_dict.get("transport_summary") or {}),
+            **(params.get("transport_summary") or {}),
         )
         .call()
     )
 
     station_summary = (
-        summarize_df.validate()
+        task(summarize_df)
+        .validate()
         .set_task_instance_id("station_summary")
         .handle_errors()
         .with_tracing()
@@ -622,13 +631,14 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
-            **(params_dict.get("station_summary") or {}),
+            **(params.get("station_summary") or {}),
         )
         .call()
     )
 
     patrol_bar_chart = (
-        draw_bar_chart.validate()
+        task(draw_bar_chart)
+        .validate()
         .set_task_instance_id("patrol_bar_chart")
         .handle_errors()
         .with_tracing()
@@ -659,13 +669,14 @@ def main(params: Params):
                     "style": {"marker_color": "#31688e"},
                 },
             ],
-            **(params_dict.get("patrol_bar_chart") or {}),
+            **(params.get("patrol_bar_chart") or {}),
         )
         .call()
     )
 
     persist_bar_chart = (
-        persist_text.validate()
+        task(persist_text)
+        .validate()
         .set_task_instance_id("persist_bar_chart")
         .handle_errors()
         .with_tracing()
@@ -680,13 +691,14 @@ def main(params: Params):
             text=patrol_bar_chart,
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filename_suffix="transport_bar_chart",
-            **(params_dict.get("persist_bar_chart") or {}),
+            **(params.get("persist_bar_chart") or {}),
         )
         .call()
     )
 
     persist_transport_summary = (
-        persist_df_wrapper.validate()
+        task(persist_df_wrapper)
+        .validate()
         .set_task_instance_id("persist_transport_summary")
         .handle_errors()
         .with_tracing()
@@ -702,13 +714,14 @@ def main(params: Params):
             filename_prefix="transport_summary",
             filetypes=["csv"],
             sanitize=True,
-            **(params_dict.get("persist_transport_summary") or {}),
+            **(params.get("persist_transport_summary") or {}),
         )
         .call()
     )
 
     mandate_summary = (
-        summarize_df.validate()
+        task(summarize_df)
+        .validate()
         .set_task_instance_id("mandate_summary")
         .handle_errors()
         .with_tracing()
@@ -745,13 +758,14 @@ def main(params: Params):
                 },
             ],
             reset_index=False,
-            **(params_dict.get("mandate_summary") or {}),
+            **(params.get("mandate_summary") or {}),
         )
         .call()
     )
 
     persist_mandate_summary = (
-        persist_df_wrapper.validate()
+        task(persist_df_wrapper)
+        .validate()
         .set_task_instance_id("persist_mandate_summary")
         .handle_errors()
         .with_tracing()
@@ -767,13 +781,14 @@ def main(params: Params):
             filename_prefix="mandate_summary",
             filetypes=["csv"],
             sanitize=True,
-            **(params_dict.get("persist_mandate_summary") or {}),
+            **(params.get("persist_mandate_summary") or {}),
         )
         .call()
     )
 
     station_groupers = (
-        set_groupers.validate()
+        task(set_groupers)
+        .validate()
         .set_task_instance_id("station_groupers")
         .handle_errors()
         .with_tracing()
@@ -786,13 +801,14 @@ def main(params: Params):
         )
         .partial(
             groupers=[{"index_name": "station"}],
-            **(params_dict.get("station_groupers") or {}),
+            **(params.get("station_groupers") or {}),
         )
         .call()
     )
 
     split_by_station = (
-        split_groups.validate()
+        task(split_groups)
+        .validate()
         .set_task_instance_id("split_by_station")
         .handle_errors()
         .with_tracing()
@@ -806,13 +822,14 @@ def main(params: Params):
         .partial(
             df=customize_columns_internally,
             groupers=station_groupers,
-            **(params_dict.get("split_by_station") or {}),
+            **(params.get("split_by_station") or {}),
         )
         .call()
     )
 
     ranger_summary = (
-        summarize_df.validate()
+        task(summarize_df)
+        .validate()
         .set_task_instance_id("ranger_summary")
         .handle_errors()
         .with_tracing()
@@ -848,13 +865,14 @@ def main(params: Params):
                 },
             ],
             reset_index=False,
-            **(params_dict.get("ranger_summary") or {}),
+            **(params.get("ranger_summary") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_by_station)
     )
 
     persist_ranger_summary = (
-        persist_df_wrapper.validate()
+        task(persist_df_wrapper)
+        .validate()
         .set_task_instance_id("persist_ranger_summary")
         .handle_errors()
         .with_tracing()
@@ -869,13 +887,14 @@ def main(params: Params):
             filename_prefix="ranger_summary",
             filetypes=["csv"],
             sanitize=True,
-            **(params_dict.get("persist_ranger_summary") or {}),
+            **(params.get("persist_ranger_summary") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=ranger_summary)
     )
 
     report_groupers = (
-        set_groupers.validate()
+        task(set_groupers)
+        .validate()
         .set_task_instance_id("report_groupers")
         .handle_errors()
         .with_tracing()
@@ -888,13 +907,14 @@ def main(params: Params):
         )
         .partial(
             groupers=[{"index_name": "patrol_mandate"}, {"index_name": "station"}],
-            **(params_dict.get("report_groupers") or {}),
+            **(params.get("report_groupers") or {}),
         )
         .call()
     )
 
     create_patrol_report = (
-        create_docx.validate()
+        task(create_docx)
+        .validate()
         .set_task_instance_id("create_patrol_report")
         .handle_errors()
         .with_tracing()
@@ -952,13 +972,14 @@ def main(params: Params):
             groupers=report_groupers,
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filename_prefix="mt_patrols_report",
-            **(params_dict.get("create_patrol_report") or {}),
+            **(params.get("create_patrol_report") or {}),
         )
         .call()
     )
 
     patrol_dashboard = (
-        gather_dashboard.validate()
+        task(gather_dashboard)
+        .validate()
         .set_task_instance_id("patrol_dashboard")
         .handle_errors()
         .with_tracing()
@@ -974,7 +995,7 @@ def main(params: Params):
             widgets=[],
             groupers=[{"index_name": "patrol_mandate"}],
             time_range=time_range,
-            **(params_dict.get("patrol_dashboard") or {}),
+            **(params.get("patrol_dashboard") or {}),
         )
         .call()
     )
