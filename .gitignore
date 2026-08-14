@@ -169,4 +169,4 @@ cython_debug/
 .scratch/
 
 # Word
-~$*
+~$*resources/mock-data/

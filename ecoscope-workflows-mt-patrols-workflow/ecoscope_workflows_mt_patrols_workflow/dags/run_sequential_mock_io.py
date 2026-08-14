@@ -11,7 +11,6 @@ import os
 import warnings  # 🧪
 from typing import Any
 
-from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
 from ecoscope.platform.tasks.config import (
     set_list_of_string_vars as set_list_of_string_vars,
 )
@@ -21,6 +20,51 @@ from ecoscope.platform.tasks.filter import (
     get_timezone_from_time_range as get_timezone_from_time_range,
 )
 from ecoscope.platform.tasks.filter import set_time_range as set_time_range
+from ecoscope.platform.tasks.io import set_er_connection as set_er_connection
+from ecoscope.platform.tasks.io import (
+    set_patrols_and_patrol_events_params as set_patrols_and_patrol_events_params,
+)
+from ecoscope.platform.tasks.skip import (
+    any_dependency_skipped as any_dependency_skipped,
+)
+from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    combine_string_lists as combine_string_lists,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    get_collection_item as get_collection_item,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    invert_string_lists as invert_string_lists,
+)
+from wt_contracts import validate as _validate
+from wt_task import task
+from wt_task.testing import create_func_magicmock  # 🧪
+
+from .. import metadata as _metadata
+
+get_patrols_from_combined_params = create_func_magicmock(  # 🧪
+    anchor="ecoscope.platform.tasks.io",  # 🧪
+    func_name="get_patrols_from_combined_params",  # 🧪
+)  # 🧪
+
+get_patrol_observations_from_patrols_df_and_combined_params = (
+    create_func_magicmock(  # 🧪
+        anchor="ecoscope.platform.tasks.io",  # 🧪
+        func_name="get_patrol_observations_from_patrols_df_and_combined_params",  # 🧪
+    )
+)  # 🧪
+
+get_events = create_func_magicmock(  # 🧪
+    anchor="ecoscope.platform.tasks.io",  # 🧪
+    func_name="get_events",  # 🧪
+)  # 🧪
+
+process_events_details = create_func_magicmock(  # 🧪
+    anchor="ecoscope.platform.tasks.io",  # 🧪
+    func_name="process_events_details",  # 🧪
+)  # 🧪
+from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
 from ecoscope.platform.tasks.groupby import set_groupers as set_groupers
 from ecoscope.platform.tasks.groupby import split_groups as split_groups
 from ecoscope.platform.tasks.io import persist_df_wrapper as persist_df_wrapper
@@ -36,10 +80,6 @@ from ecoscope.platform.tasks.results import draw_ecomap as draw_ecomap
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
 from ecoscope.platform.tasks.skip import all_geometry_are_none as all_geometry_are_none
-from ecoscope.platform.tasks.skip import (
-    any_dependency_skipped as any_dependency_skipped,
-)
-from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
 from ecoscope.platform.tasks.skip import never as never
 from ecoscope.platform.tasks.transformation import (
     add_temporal_index as add_temporal_index,
@@ -64,24 +104,10 @@ from ecoscope.platform.tasks.transformation import (
 )
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
 from ecoscope.platform.tasks.transformation import map_values as map_values
-from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
 from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    combine_string_lists as combine_string_lists,
-)
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    get_collection_item as get_collection_item,
-)
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    invert_string_lists as invert_string_lists,
-)
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     merge_two_dataframes as merge_two_dataframes,
 )
-from wt_contracts import validate as _validate
-from wt_task import task
-
-from .. import metadata as _metadata
 
 
 def main(params: dict[str, Any], validate_params_schema: bool = True):
@@ -104,6 +130,23 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(**(params.get("workflow_details") or {}))
+        .call()
+    )
+
+    er_client_name = (
+        task(set_er_connection)
+        .validate()
+        .set_task_instance_id("er_client_name")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("er_client_name") or {}))
         .call()
     )
 
@@ -267,9 +310,59 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    patrol_obs = (
-        task(load_df)
+    er_patrol_and_events_params = (
+        task(set_patrols_and_patrol_events_params)
         .validate()
+        .set_task_instance_id("er_patrol_and_events_params")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            client=er_client_name,
+            time_range=time_range,
+            patrol_types=selected_patrol_types,
+            event_types=[],
+            status=["done"],
+            include_patrol_details=True,
+            raise_on_empty=False,
+            include_null_geometry=True,
+            truncate_to_time_range=True,
+            sub_page_size=100,
+            patrols_overlap_daterange=True,
+            **(params.get("er_patrol_and_events_params") or {}),
+        )
+        .call()
+    )
+
+    prefetch_patrols = (
+        task(get_patrols_from_combined_params)
+        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
+        .set_task_instance_id("prefetch_patrols")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            combined_params=er_patrol_and_events_params,
+            **(params.get("prefetch_patrols") or {}),
+        )
+        .call()
+    )
+
+    patrol_obs = (
+        task(get_patrol_observations_from_patrols_df_and_combined_params)
+        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
         .set_task_instance_id("patrol_obs")
         .handle_errors()
         .with_tracing()
@@ -280,13 +373,47 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             unpack_depth=1,
         )
-        .partial(deserialize_json=False, **(params.get("patrol_obs") or {}))
+        .partial(
+            patrols_df=prefetch_patrols,
+            combined_params=er_patrol_and_events_params,
+            **(params.get("patrol_obs") or {}),
+        )
+        .call()
+    )
+
+    patrol_info_events_raw = (
+        task(get_events)
+        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
+        .set_task_instance_id("patrol_info_events_raw")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            client=er_client_name,
+            time_range=time_range,
+            event_types=["patrol_information"],
+            include_details=True,
+            include_null_geometry=True,
+            raise_on_empty=False,
+            event_columns=None,
+            include_updates=False,
+            include_related_events=False,
+            include_display_values=False,
+            force_point_geometry=True,
+            **(params.get("patrol_info_events_raw") or {}),
+        )
         .call()
     )
 
     patrol_info_events = (
-        task(load_df)
-        .validate()
+        task(process_events_details)
+        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
         .set_task_instance_id("patrol_info_events")
         .handle_errors()
         .with_tracing()
@@ -297,7 +424,13 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             ],
             unpack_depth=1,
         )
-        .partial(deserialize_json=True, **(params.get("patrol_info_events") or {}))
+        .partial(
+            df=patrol_info_events_raw,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params.get("patrol_info_events") or {}),
+        )
         .call()
     )
 
@@ -489,6 +622,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             df=patrol_attribute_columns,
             query="SELECT patrol_id,\n       MAX(ranger_name) AS ranger_name,\n       MAX(patrol_mandate) AS patrol_mandate,\n       MAX(team_name) AS team_name,\n       MAX(patrol_transport) AS patrol_transport\nFROM df GROUP BY patrol_id\n",
+            columns=None,
+            sanitize=True,
             **(params.get("patrol_attributes") or {}),
         )
         .call()
@@ -656,6 +791,10 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             right=patrol_attributes,
             how="left",
             on="patrol_id",
+            left_on=None,
+            right_on=None,
+            left_index=False,
+            right_index=False,
             fillna_value="Unknown",
             **(params.get("traj_with_attributes") or {}),
         )
