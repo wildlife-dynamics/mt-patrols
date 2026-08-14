@@ -11,43 +11,25 @@ import os
 import warnings  # 🧪
 from typing import Any
 
+from ecoscope.platform.tasks.config import (
+    set_list_of_string_vars as set_list_of_string_vars,
+)
+from ecoscope.platform.tasks.config import set_string_var as set_string_var
 from ecoscope.platform.tasks.config import set_workflow_details as set_workflow_details
+from ecoscope.platform.tasks.filter import (
+    get_timezone_from_time_range as get_timezone_from_time_range,
+)
 from ecoscope.platform.tasks.filter import set_time_range as set_time_range
-from ecoscope.platform.tasks.io import set_smart_connection as set_smart_connection
+from ecoscope.platform.tasks.groupby import split_groups as split_groups
+from ecoscope.platform.tasks.io import persist_df_wrapper as persist_df_wrapper
+from ecoscope.platform.tasks.preprocessing import (
+    relocations_to_trajectory as relocations_to_trajectory,
+)
+from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
 )
 from ecoscope.platform.tasks.skip import any_is_empty_df as any_is_empty_df
-from wt_contracts import validate as _validate
-from wt_task import task
-from wt_task.testing import create_func_magicmock  # 🧪
-
-from .. import metadata as _metadata
-
-get_patrol_observations_from_smart = create_func_magicmock(  # 🧪
-    anchor="ecoscope.platform.tasks.io",  # 🧪
-    func_name="get_patrol_observations_from_smart",  # 🧪
-)  # 🧪
-from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
-from ecoscope.platform.tasks.config import set_string_var as set_string_var
-from ecoscope.platform.tasks.filter import (
-    get_timezone_from_time_range as get_timezone_from_time_range,
-)
-from ecoscope.platform.tasks.groupby import set_groupers as set_groupers
-from ecoscope.platform.tasks.groupby import split_groups as split_groups
-from ecoscope.platform.tasks.io import persist_df_wrapper as persist_df_wrapper
-from ecoscope.platform.tasks.io import persist_text as persist_text
-from ecoscope.platform.tasks.preprocessing import (
-    relocations_to_trajectory as relocations_to_trajectory,
-)
-from ecoscope.platform.tasks.results import (
-    create_polyline_layer as create_polyline_layer,
-)
-from ecoscope.platform.tasks.results import draw_bar_chart as draw_bar_chart
-from ecoscope.platform.tasks.results import draw_ecomap as draw_ecomap
-from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
-from ecoscope.platform.tasks.results import set_base_maps as set_base_maps
-from ecoscope.platform.tasks.skip import all_geometry_are_none as all_geometry_are_none
 from ecoscope.platform.tasks.skip import never as never
 from ecoscope.platform.tasks.transformation import (
     add_temporal_index as add_temporal_index,
@@ -56,14 +38,39 @@ from ecoscope.platform.tasks.transformation import apply_color_map as apply_colo
 from ecoscope.platform.tasks.transformation import (
     apply_reloc_coord_filter as apply_reloc_coord_filter,
 )
+from ecoscope.platform.tasks.transformation import apply_sql_query as apply_sql_query
 from ecoscope.platform.tasks.transformation import (
     convert_values_to_timezone as convert_values_to_timezone,
 )
 from ecoscope.platform.tasks.transformation import (
     drop_column_prefix as drop_column_prefix,
 )
+from ecoscope.platform.tasks.transformation import explode as explode
+from ecoscope.platform.tasks.transformation import (
+    extract_column_as_type as extract_column_as_type,
+)
+from ecoscope.platform.tasks.transformation import (
+    extract_value_from_json_column as extract_value_from_json_column,
+)
 from ecoscope.platform.tasks.transformation import map_columns as map_columns
-from ecoscope_workflows_ext_custom.tasks.results import create_docx as create_docx
+from ecoscope.platform.tasks.transformation import map_values as map_values
+from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    combine_string_lists as combine_string_lists,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    get_collection_item as get_collection_item,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    invert_string_lists as invert_string_lists,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    merge_two_dataframes as merge_two_dataframes,
+)
+from wt_contracts import validate as _validate
+from wt_task import task
+
+from .. import metadata as _metadata
 
 
 def main(params: dict[str, Any], validate_params_schema: bool = True):
@@ -89,23 +96,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    smart_client_name = (
-        task(set_smart_connection)
-        .validate()
-        .set_task_instance_id("smart_client_name")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params.get("smart_client_name") or {}))
-        .call()
-    )
-
     time_range = (
         task(set_time_range)
         .validate()
@@ -120,31 +110,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(time_format="%d %b %Y %H:%M:%S %Z", **(params.get("time_range") or {}))
-        .call()
-    )
-
-    patrol_obs = (
-        task(get_patrol_observations_from_smart)
-        # 🧪 validation omitted for mocked IO task (returns pre-loaded example data)
-        .set_task_instance_id("patrol_obs")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            client=smart_client_name,
-            time_range=time_range,
-            ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
-            language_uuid="13451893-86af-4ec0-beac-2b8e0c2482b5",
-            patrol_mandate=None,
-            patrol_transport=None,
-            **(params.get("patrol_obs") or {}),
-        )
         .call()
     )
 
@@ -165,10 +130,363 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    convert_patrols_to_user_timezone = (
+    report_scope = (
+        task(set_string_var)
+        .validate()
+        .set_task_instance_id("report_scope")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("report_scope") or {}))
+        .call()
+    )
+
+    triangle_patrol_types = (
+        task(set_list_of_string_vars)
+        .validate()
+        .set_task_instance_id("triangle_patrol_types")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("triangle_patrol_types") or {}))
+        .call()
+    )
+
+    reserve_patrol_types = (
+        task(set_list_of_string_vars)
+        .validate()
+        .set_task_instance_id("reserve_patrol_types")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(**(params.get("reserve_patrol_types") or {}))
+        .call()
+    )
+
+    include_areas = (
+        task(get_collection_item)
+        .validate()
+        .set_task_instance_id("include_areas")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            collection={
+                "Mara Triangle & Reserve": ["Mara Triangle", "Reserve"],
+                "Mara Triangle only": ["Mara Triangle"],
+                "Reserve only": ["Reserve"],
+            },
+            key=report_scope,
+            default=None,
+            raise_on_missing=True,
+            **(params.get("include_areas") or {}),
+        )
+        .call()
+    )
+
+    selected_patrol_types = (
+        task(combine_string_lists)
+        .validate()
+        .set_task_instance_id("selected_patrol_types")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            lists={
+                "Mara Triangle": triangle_patrol_types,
+                "Reserve": reserve_patrol_types,
+            },
+            include_keys=include_areas,
+            **(params.get("selected_patrol_types") or {}),
+        )
+        .call()
+    )
+
+    patrol_area_value_map = (
+        task(invert_string_lists)
+        .validate()
+        .set_task_instance_id("patrol_area_value_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            lists={
+                "Mara Triangle": triangle_patrol_types,
+                "Reserve": reserve_patrol_types,
+            },
+            include_keys=include_areas,
+            **(params.get("patrol_area_value_map") or {}),
+        )
+        .call()
+    )
+
+    patrol_obs = (
+        task(load_df)
+        .validate()
+        .set_task_instance_id("patrol_obs")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(deserialize_json=False, **(params.get("patrol_obs") or {}))
+        .call()
+    )
+
+    patrol_info_events = (
+        task(load_df)
+        .validate()
+        .set_task_instance_id("patrol_info_events")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(deserialize_json=True, **(params.get("patrol_info_events") or {}))
+        .call()
+    )
+
+    explode_event_patrols = (
+        task(explode)
+        .validate()
+        .set_task_instance_id("explode_event_patrols")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=patrol_info_events,
+            column_name="patrols",
+            ignore_index=True,
+            **(params.get("explode_event_patrols") or {}),
+        )
+        .call()
+    )
+
+    event_patrol_id = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("event_patrol_id")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=explode_event_patrols,
+            rename_columns={"patrols": "patrol_id"},
+            drop_columns=[],
+            retain_columns=[],
+            raise_if_not_found=True,
+            **(params.get("event_patrol_id") or {}),
+        )
+        .call()
+    )
+
+    extract_ranger_name = (
+        task(extract_value_from_json_column)
+        .validate()
+        .set_task_instance_id("extract_ranger_name")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=event_patrol_id,
+            column_name="event_details",
+            field_name_options=["Patrol leader", "Team_leader"],
+            output_type="str",
+            output_column_name="ranger_name",
+            **(params.get("extract_ranger_name") or {}),
+        )
+        .call()
+    )
+
+    extract_mandate = (
+        task(extract_value_from_json_column)
+        .validate()
+        .set_task_instance_id("extract_mandate")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_ranger_name,
+            column_name="event_details",
+            field_name_options=["Mandate", "mandate"],
+            output_type="str",
+            output_column_name="patrol_mandate",
+            **(params.get("extract_mandate") or {}),
+        )
+        .call()
+    )
+
+    extract_team_name = (
+        task(extract_value_from_json_column)
+        .validate()
+        .set_task_instance_id("extract_team_name")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_mandate,
+            column_name="event_details",
+            field_name_options=["Team name", "Team_name"],
+            output_type="str",
+            output_column_name="team_name",
+            **(params.get("extract_team_name") or {}),
+        )
+        .call()
+    )
+
+    extract_transport = (
+        task(extract_value_from_json_column)
+        .validate()
+        .set_task_instance_id("extract_transport")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_team_name,
+            column_name="event_details",
+            field_name_options=["Transport type", "Transport_type"],
+            output_type="str",
+            output_column_name="patrol_transport",
+            **(params.get("extract_transport") or {}),
+        )
+        .call()
+    )
+
+    patrol_attribute_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("patrol_attribute_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_transport,
+            rename_columns={},
+            drop_columns=[],
+            retain_columns=[
+                "patrol_id",
+                "ranger_name",
+                "patrol_mandate",
+                "team_name",
+                "patrol_transport",
+            ],
+            raise_if_not_found=False,
+            **(params.get("patrol_attribute_columns") or {}),
+        )
+        .call()
+    )
+
+    patrol_attributes = (
+        task(apply_sql_query)
+        .validate()
+        .set_task_instance_id("patrol_attributes")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=patrol_attribute_columns,
+            query="SELECT patrol_id,\n       MAX(ranger_name) AS ranger_name,\n       MAX(patrol_mandate) AS patrol_mandate,\n       MAX(team_name) AS team_name,\n       MAX(patrol_transport) AS patrol_transport\nFROM df GROUP BY patrol_id\n",
+            **(params.get("patrol_attributes") or {}),
+        )
+        .call()
+    )
+
+    convert_obs_to_user_timezone = (
         task(convert_values_to_timezone)
         .validate()
-        .set_task_instance_id("convert_patrols_to_user_timezone")
+        .set_task_instance_id("convert_obs_to_user_timezone")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -181,8 +499,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             df=patrol_obs,
             timezone=get_timezone,
-            columns=["fixtime"],
-            **(params.get("convert_patrols_to_user_timezone") or {}),
+            columns=["fixtime", "patrol_start_time", "patrol_end_time"],
+            **(params.get("convert_obs_to_user_timezone") or {}),
         )
         .call()
     )
@@ -201,10 +519,37 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            df=convert_patrols_to_user_timezone,
+            df=convert_obs_to_user_timezone,
             prefix="extra__",
             duplicate_strategy="suffix",
             **(params.get("drop_extra_prefix_obs") or {}),
+        )
+        .call()
+    )
+
+    rename_patrol_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_patrol_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_extra_prefix_obs,
+            drop_columns=["patrol_type"],
+            rename_columns={
+                "patrol_type__value": "patrol_type",
+                "patrol_type__display": "patrol_type_display",
+            },
+            retain_columns=[],
+            raise_if_not_found=False,
+            **(params.get("rename_patrol_columns") or {}),
         )
         .call()
     )
@@ -223,7 +568,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            df=drop_extra_prefix_obs,
+            df=rename_patrol_columns,
             roi_gdf=None,
             roi_name=None,
             reset_index=False,
@@ -282,10 +627,10 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    customize_columns_internally = (
-        task(map_columns)
+    traj_with_attributes = (
+        task(merge_two_dataframes)
         .validate()
-        .set_task_instance_id("customize_columns_internally")
+        .set_task_instance_id("traj_with_attributes")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -296,12 +641,59 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            df=drop_extra_prefix_traj,
-            rename_columns={},
-            drop_columns=["id", "track"],
-            retain_columns=[],
-            raise_if_not_found=False,
-            **(params.get("customize_columns_internally") or {}),
+            left=drop_extra_prefix_traj,
+            right=patrol_attributes,
+            how="left",
+            on="patrol_id",
+            fillna_value="Unknown",
+            **(params.get("traj_with_attributes") or {}),
+        )
+        .call()
+    )
+
+    copy_patrol_type = (
+        task(extract_column_as_type)
+        .validate()
+        .set_task_instance_id("copy_patrol_type")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=traj_with_attributes,
+            column_name="patrol_type",
+            output_type="str",
+            output_column_name="patrol_area",
+            **(params.get("copy_patrol_type") or {}),
+        )
+        .call()
+    )
+
+    derive_patrol_area = (
+        task(map_values)
+        .validate()
+        .set_task_instance_id("derive_patrol_area")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=copy_patrol_type,
+            column_name="patrol_area",
+            value_map=patrol_area_value_map,
+            missing_values="replace",
+            replacement="Unknown",
+            **(params.get("derive_patrol_area") or {}),
         )
         .call()
     )
@@ -320,9 +712,9 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            df=customize_columns_internally,
+            df=derive_patrol_area,
             time_col="segment_start",
-            groupers=[{"index_name": "patrol_mandate"}],
+            groupers=[{"index_name": "patrol_area"}, {"index_name": "patrol_mandate"}],
             cast_to_datetime=True,
             format="mixed",
             **(params.get("traj_add_temporal_index") or {}),
@@ -363,17 +755,17 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "#331878",
                 "#E76826",
             ],
-            input_column_name="station",
-            output_column_name="patrol_traj_colormap",
+            input_column_name="team_name",
+            output_column_name="team_colormap",
             **(params.get("traj_colormap") or {}),
         )
         .call()
     )
 
-    split_patrol_traj_groups = (
+    split_by_area = (
         task(split_groups)
         .validate()
-        .set_task_instance_id("split_patrol_traj_groups")
+        .set_task_instance_id("split_by_area")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -385,8 +777,29 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             df=traj_colormap,
-            groupers=[{"index_name": "patrol_mandate"}],
-            **(params.get("split_patrol_traj_groups") or {}),
+            groupers=[{"index_name": "patrol_area"}],
+            **(params.get("split_by_area") or {}),
+        )
+        .call()
+    )
+
+    split_map_groups = (
+        task(split_groups)
+        .validate()
+        .set_task_instance_id("split_map_groups")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=traj_colormap,
+            groupers=[{"index_name": "patrol_area"}, {"index_name": "patrol_mandate"}],
+            **(params.get("split_map_groups") or {}),
         )
         .call()
     )
@@ -409,572 +822,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             sanitize=True,
             **(params.get("persist_patrol_traj") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
-    )
-
-    set_patrol_map_title = (
-        task(set_string_var)
-        .validate()
-        .set_task_instance_id("set_patrol_map_title")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            var="Patrol Trajectories Map", **(params.get("set_patrol_map_title") or {})
-        )
-        .call()
-    )
-
-    base_map_defs = (
-        task(set_base_maps)
-        .validate()
-        .set_task_instance_id("base_map_defs")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(**(params.get("base_map_defs") or {}))
-        .call()
-    )
-
-    rename_traj_display_columns = (
-        task(map_columns)
-        .validate()
-        .set_task_instance_id("rename_traj_display_columns")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            raise_if_not_found=False,
-            rename_columns={
-                "segment_start": "Start Time",
-                "timespan_seconds": "Duration (s)",
-                "speed_kmhr": "Speed (kph)",
-            },
-            **(params.get("rename_traj_display_columns") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=split_patrol_traj_groups)
-    )
-
-    patrol_traj_map_layers = (
-        task(create_polyline_layer)
-        .validate()
-        .set_task_instance_id("patrol_traj_map_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-                all_geometry_are_none,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_width": 3,
-                "width_units": "pixels",
-                "color_column": "patrol_traj_colormap",
-            },
-            legend={"label_column": "station", "color_column": "patrol_traj_colormap"},
-            tooltip_columns=["Start Time", "Duration (s)", "Speed (kph)"],
-            **(params.get("patrol_traj_map_layers") or {}),
-        )
-        .mapvalues(argnames=["geodataframe"], argvalues=rename_traj_display_columns)
-    )
-
-    traj_ecomap = (
-        task(draw_ecomap)
-        .validate()
-        .set_task_instance_id("traj_ecomap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            title=None,
-            tile_layers=base_map_defs,
-            north_arrow_style={"placement": "top-left"},
-            legend_style={"placement": "bottom-right"},
-            static=False,
-            max_zoom=20,
-            **(params.get("traj_ecomap") or {}),
-        )
-        .mapvalues(argnames=["geo_layers"], argvalues=patrol_traj_map_layers)
-    )
-
-    traj_ecomap_html_urls = (
-        task(persist_text)
-        .validate()
-        .set_task_instance_id("traj_ecomap_html_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_suffix="patrol_map",
-            **(params.get("traj_ecomap_html_urls") or {}),
-        )
-        .mapvalues(argnames=["text"], argvalues=traj_ecomap)
-    )
-
-    transport_summary = (
-        task(summarize_df)
-        .validate()
-        .set_task_instance_id("transport_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=customize_columns_internally,
-            groupby_cols=["patrol_transport"],
-            summary_params=[
-                {
-                    "display_name": "Patrol Count",
-                    "aggregator": "nunique",
-                    "column": "patrol_id",
-                },
-                {
-                    "display_name": "Total Distance (km)",
-                    "aggregator": "sum",
-                    "column": "dist_meters",
-                    "original_unit": "m",
-                    "new_unit": "km",
-                },
-                {
-                    "display_name": "Total Duration (hours)",
-                    "aggregator": "sum",
-                    "column": "timespan_seconds",
-                    "original_unit": "s",
-                    "new_unit": "h",
-                    "decimal_places": 1,
-                },
-            ],
-            reset_index=False,
-            **(params.get("transport_summary") or {}),
-        )
-        .call()
-    )
-
-    station_summary = (
-        task(summarize_df)
-        .validate()
-        .set_task_instance_id("station_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=customize_columns_internally,
-            groupby_cols=["station"],
-            summary_params=[
-                {
-                    "display_name": "Patrol Count",
-                    "aggregator": "nunique",
-                    "column": "patrol_id",
-                },
-                {
-                    "display_name": "Total Distance (km)",
-                    "aggregator": "sum",
-                    "column": "dist_meters",
-                    "original_unit": "m",
-                    "new_unit": "km",
-                },
-                {
-                    "display_name": "Total Duration (hours)",
-                    "aggregator": "sum",
-                    "column": "timespan_seconds",
-                    "original_unit": "s",
-                    "new_unit": "h",
-                    "decimal_places": 1,
-                },
-            ],
-            reset_index=True,
-            **(params.get("station_summary") or {}),
-        )
-        .call()
-    )
-
-    patrol_bar_chart = (
-        task(draw_bar_chart)
-        .validate()
-        .set_task_instance_id("patrol_bar_chart")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            dataframe=station_summary,
-            category="station",
-            layout_kwargs=None,
-            bar_chart_configs=[
-                {
-                    "label": "Total Distance (km)",
-                    "column": "Total Distance (km)",
-                    "agg_func": "sum",
-                    "show_label": True,
-                    "style": {"marker_color": "#35b779"},
-                },
-                {
-                    "label": "Total Duration (hours)",
-                    "column": "Total Duration (hours)",
-                    "agg_func": "sum",
-                    "show_label": True,
-                    "style": {"marker_color": "#31688e"},
-                },
-            ],
-            **(params.get("patrol_bar_chart") or {}),
-        )
-        .call()
-    )
-
-    persist_bar_chart = (
-        task(persist_text)
-        .validate()
-        .set_task_instance_id("persist_bar_chart")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            text=patrol_bar_chart,
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_suffix="transport_bar_chart",
-            **(params.get("persist_bar_chart") or {}),
-        )
-        .call()
-    )
-
-    persist_transport_summary = (
-        task(persist_df_wrapper)
-        .validate()
-        .set_task_instance_id("persist_transport_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=transport_summary,
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_prefix="transport_summary",
-            filetypes=["csv"],
-            sanitize=True,
-            **(params.get("persist_transport_summary") or {}),
-        )
-        .call()
-    )
-
-    mandate_summary = (
-        task(summarize_df)
-        .validate()
-        .set_task_instance_id("mandate_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=customize_columns_internally,
-            groupby_cols=["patrol_mandate"],
-            summary_params=[
-                {
-                    "display_name": "Patrol Count",
-                    "aggregator": "nunique",
-                    "column": "patrol_id",
-                },
-                {
-                    "display_name": "Total Distance (km)",
-                    "aggregator": "sum",
-                    "column": "dist_meters",
-                    "original_unit": "m",
-                    "new_unit": "km",
-                },
-                {
-                    "display_name": "Total Duration (hours)",
-                    "aggregator": "sum",
-                    "column": "timespan_seconds",
-                    "original_unit": "s",
-                    "new_unit": "h",
-                    "decimal_places": 1,
-                },
-            ],
-            reset_index=False,
-            **(params.get("mandate_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_mandate_summary = (
-        task(persist_df_wrapper)
-        .validate()
-        .set_task_instance_id("persist_mandate_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=mandate_summary,
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_prefix="mandate_summary",
-            filetypes=["csv"],
-            sanitize=True,
-            **(params.get("persist_mandate_summary") or {}),
-        )
-        .call()
-    )
-
-    station_groupers = (
-        task(set_groupers)
-        .validate()
-        .set_task_instance_id("station_groupers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupers=[{"index_name": "station"}],
-            **(params.get("station_groupers") or {}),
-        )
-        .call()
-    )
-
-    split_by_station = (
-        task(split_groups)
-        .validate()
-        .set_task_instance_id("split_by_station")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=customize_columns_internally,
-            groupers=station_groupers,
-            **(params.get("split_by_station") or {}),
-        )
-        .call()
-    )
-
-    ranger_summary = (
-        task(summarize_df)
-        .validate()
-        .set_task_instance_id("ranger_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["patrol_leader_name"],
-            summary_params=[
-                {
-                    "display_name": "Patrol Count",
-                    "aggregator": "nunique",
-                    "column": "patrol_id",
-                },
-                {
-                    "display_name": "Total Distance (km)",
-                    "aggregator": "sum",
-                    "column": "dist_meters",
-                    "original_unit": "m",
-                    "new_unit": "km",
-                },
-                {
-                    "display_name": "Total Duration (hours)",
-                    "aggregator": "sum",
-                    "column": "timespan_seconds",
-                    "original_unit": "s",
-                    "new_unit": "h",
-                    "decimal_places": 1,
-                },
-            ],
-            reset_index=False,
-            **(params.get("ranger_summary") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=split_by_station)
-    )
-
-    persist_ranger_summary = (
-        task(persist_df_wrapper)
-        .validate()
-        .set_task_instance_id("persist_ranger_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_prefix="ranger_summary",
-            filetypes=["csv"],
-            sanitize=True,
-            **(params.get("persist_ranger_summary") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=ranger_summary)
-    )
-
-    report_groupers = (
-        task(set_groupers)
-        .validate()
-        .set_task_instance_id("report_groupers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupers=[{"index_name": "patrol_mandate"}, {"index_name": "station"}],
-            **(params.get("report_groupers") or {}),
-        )
-        .call()
-    )
-
-    create_patrol_report = (
-        task(create_docx)
-        .validate()
-        .set_task_instance_id("create_patrol_report")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            context={
-                "items": [
-                    {
-                        "item_type": "timerange",
-                        "key": "report_date",
-                        "value": time_range,
-                        "format": "%b %Y",
-                    },
-                    {
-                        "item_type": "image",
-                        "key": "patrol_maps",
-                        "value": traj_ecomap_html_urls,
-                        "screenshot_config": {
-                            "wait_for_timeout": 20000,
-                            "max_concurrent_pages": 2,
-                            "device_scale_factor": 1.0,
-                        },
-                    },
-                    {
-                        "item_type": "image",
-                        "key": "bar_chart",
-                        "value": persist_bar_chart,
-                        "screenshot_config": {
-                            "wait_for_timeout": 0,
-                            "max_concurrent_pages": 2,
-                        },
-                    },
-                    {
-                        "item_type": "table",
-                        "key": "transport_summary",
-                        "value": transport_summary,
-                    },
-                    {
-                        "item_type": "table",
-                        "key": "mandate_summary",
-                        "value": mandate_summary,
-                    },
-                    {
-                        "item_type": "table",
-                        "key": "ranger_summary",
-                        "value": ranger_summary,
-                    },
-                ]
-            },
-            groupers=report_groupers,
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename_prefix="mt_patrols_report",
-            **(params.get("create_patrol_report") or {}),
-        )
-        .call()
+        .mapvalues(argnames=["df"], argvalues=split_by_area)
     )
 
     patrol_dashboard = (
@@ -993,7 +841,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             details=workflow_details,
             widgets=[],
-            groupers=[{"index_name": "patrol_mandate"}],
+            groupers=[{"index_name": "patrol_area"}],
             time_range=time_range,
             **(params.get("patrol_dashboard") or {}),
         )

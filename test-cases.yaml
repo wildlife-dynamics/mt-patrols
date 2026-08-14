@@ -1,26 +1,40 @@
 base:
-  name: Base Test Case
+  name: Base Test Case (local mmnr sample data)
   mock_io: false
   params:
     workflow_details:
-      name: "MT Patrols"
-      description: "SMART patrol trajectories workflow"
+      name: "Mara Triangle Patrol Report"
+      description: "Patrol activity from EarthRanger (mmnr)"
     time_range:
-      since: "2026-02-01T00:00:00Z"
-      until: "2026-02-28T23:59:59Z"
-    smart_client_name:
-      data_source:
-        name: "mara_triangle"
-    # patrol_obs:
-    #   file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
-    patrol_traj:
-      trajectory_segment_filter:
-        max_length_meters: 10000
+      since: "2026-07-01T00:00:00Z"
+      until: "2026-07-31T23:59:59Z"
+    report_scope:
+      var: "Mara Triangle & Reserve"
+    triangle_patrol_types:
+      vars:
+        - "rhino_monitoring_patrol"
+        - "rhino_monitoring_vehicle_patrol"
+        - "general_law_enforcement"
+        - "law_enforcement_vehicle"
+        - "anti_harass_patrol"
+        - "anti_harass_vehicle"
+        - "community_outreach"
+        - "community_outreach_vehicle"
+        - "k9_deploy"
+        - "k9_training"
+        - "rabies_vaccine"
+        - "rabies_vaccine_vehicle"
+    reserve_patrol_types:
+      vars:
+        - "rhino_monitor_patrol_reserve"
+        - "rhino_monitoring_veh_patrol_reserve"
+        - "law_enforcement_reserve"
+        - "law_enforcement_veh_reserve"
+        - "anti_harass_reserve"
+        - "anti_harass_veh_reserve"
+    patrol_obs:
+      file_path: "/Users/yunwu/MEP/wt-workflows/mt-patrols/resources/mock-data/mmnr_patrol_obs.parquet"
+    patrol_info_events:
+      file_path: "/Users/yunwu/MEP/wt-workflows/mt-patrols/resources/mock-data/mmnr_patrol_info_events.parquet"
     persist_patrol_traj:
       filetypes: ["parquet"]
-    base_map_defs:
-      base_maps:
-        - layer_name: "TERRAIN"
-          opacity: 1
-    create_patrol_report:
-      template_path: https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx

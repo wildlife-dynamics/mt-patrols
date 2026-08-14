@@ -4,16 +4,49 @@ requirements:
   - name: ecoscope-platform
     version: ">=2.18.0, <2.19.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
+  # DEV MODE: editable local ext-custom carrying combine_string_lists /
+  # invert_string_lists (branch encounter-rate-sum-column-align-task).
+  # Before publish: cut an ext-custom rc release with these tasks and restore
+  # the versioned channel requirement (>= 0.1.0rc25).
   - name: ecoscope-workflows-ext-custom
-    version: "0.1.0rc24"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+    path: /Users/yunwu/MEP/wt-tasks/ecoscope-workflow-task-library/src/ecoscope-workflows-ext-custom
+    editable: true
+  # editable ext-custom declares setuptools<=81.0.0; pin the conda side to
+  # match or the pypi solve conflicts with the conda-pinned setuptools
+  - name: setuptools
+    version: "<=81.0.0"
+    channel: conda-forge
   - name: pydeck
     version: "0.9.2"
     channel: conda-forge
 
-
 rjsf-overrides:
   properties:
+    Report Scope.properties.report_scope.properties.var.enum:
+      - "Mara Triangle & Reserve"
+      - "Mara Triangle only"
+      - "Reserve only"
+    Report Scope.properties.report_scope.properties.var.default: "Mara Triangle & Reserve"
+    Report Scope.properties.triangle_patrol_types.properties.vars.default:
+      - "rhino_monitoring_patrol"
+      - "rhino_monitoring_vehicle_patrol"
+      - "general_law_enforcement"
+      - "law_enforcement_vehicle"
+      - "anti_harass_patrol"
+      - "anti_harass_vehicle"
+      - "community_outreach"
+      - "community_outreach_vehicle"
+      - "k9_deploy"
+      - "k9_training"
+      - "rabies_vaccine"
+      - "rabies_vaccine_vehicle"
+    Report Scope.properties.reserve_patrol_types.properties.vars.default:
+      - "rhino_monitor_patrol_reserve"
+      - "rhino_monitoring_veh_patrol_reserve"
+      - "law_enforcement_reserve"
+      - "law_enforcement_veh_reserve"
+      - "anti_harass_reserve"
+      - "anti_harass_veh_reserve"
     Process Patrol Observations.properties.patrol_traj.properties.trajectory_segment_filter.default:
       min_length_meters: 0.001
       max_length_meters: 10000
@@ -23,10 +56,6 @@ rjsf-overrides:
       max_speed_kmhr: 500
     persist_patrol_traj.properties.filetypes.default: ["parquet"]
     persist_patrol_traj.properties.filetypes.items.enum: ["csv", "parquet"]
-    Generate Maps.properties.base_map_defs.properties.base_maps.default:
-      - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
-        opacity: 1
-    create_patrol_report.properties.template_path.default: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx"
 
   uiSchema:
     Process Patrol Observations.filter_patrol_obs.filter_point_coords.items.ui:options.label: false
@@ -42,9 +71,11 @@ workflow:
     id: workflow_details
     task: set_workflow_details
 
-  - name: Data Source
-    id: smart_client_name
-    task: set_smart_connection
+  # Phase 3: restore the ER connection (uncomment) and remove the load_df
+  # stand-ins below.
+  # - name: Data Source
+  #   id: er_client_name
+  #   task: set_er_connection
 
   - name: Time Range
     id: time_range
@@ -52,55 +83,264 @@ workflow:
     partial:
       time_format: '%d %b %Y %H:%M:%S %Z'
 
-  - name: Get Patrol Observations
-    id: patrol_obs
-    task: ecoscope.platform.tasks.io.get_patrol_observations_from_smart
-    partial:
-      client: ${{ workflow.smart_client_name.return }}
-      time_range: ${{ workflow.time_range.return }}
-      ca_uuid: "735606d2-c34e-49c3-a45b-7496ca834e58"
-      language_uuid: "13451893-86af-4ec0-beac-2b8e0c2482b5"
-      patrol_mandate: null
-      patrol_transport: null
-
-  # - name: Load Patrol Observations
-  #   id: patrol_obs
-  #   task: ecoscope_workflows_ext_custom.tasks.io.load_df
-  #   partial:
-  #     deserialize_json: false
-
   - name: Extract Timezone Selection
     id: get_timezone
     task: get_timezone_from_time_range
     partial:
       time_range: ${{ workflow.time_range.return }}
 
+  - title: Report Scope
+    type: task-group
+    description: "Choose which areas the report covers."
+    tasks:
+      - name: Report Scope
+        id: report_scope
+        task: set_string_var
+        # rjsf override constrains to the three options and sets the default
+
+      - name: Mara Triangle Patrol Types
+        id: triangle_patrol_types
+        task: set_list_of_string_vars
+        # advanced field; default prefilled via rjsf-overrides (mmnr slugs)
+
+      - name: Reserve Patrol Types
+        id: reserve_patrol_types
+        task: set_list_of_string_vars
+        # advanced field; default prefilled via rjsf-overrides (mmnr slugs)
+
+      - name: Included Areas
+        id: include_areas
+        task: ecoscope_workflows_ext_custom.tasks.transformation.get_collection_item
+        partial:
+          collection:
+            "Mara Triangle & Reserve": ["Mara Triangle", "Reserve"]
+            "Mara Triangle only": ["Mara Triangle"]
+            "Reserve only": ["Reserve"]
+          key: ${{ workflow.report_scope.return }}
+          default: null
+          raise_on_missing: true
+
+      - name: Selected Patrol Types
+        id: selected_patrol_types
+        task: ecoscope_workflows_ext_custom.tasks.transformation.combine_string_lists
+        partial:
+          lists:
+            "Mara Triangle": ${{ workflow.triangle_patrol_types.return }}
+            "Reserve": ${{ workflow.reserve_patrol_types.return }}
+          include_keys: ${{ workflow.include_areas.return }}
+
+      - name: Patrol Area Value Map
+        id: patrol_area_value_map
+        task: ecoscope_workflows_ext_custom.tasks.transformation.invert_string_lists
+        partial:
+          lists:
+            "Mara Triangle": ${{ workflow.triangle_patrol_types.return }}
+            "Reserve": ${{ workflow.reserve_patrol_types.return }}
+          include_keys: ${{ workflow.include_areas.return }}
+
+  # Phase 3: restore the EarthRanger fetch chain (uncomment) and remove the
+  # load_df stand-ins below. Note: patrol_information event_details are NOT
+  # present in the events nested in the patrols payload (unpack_events_...),
+  # so patrol events are fetched separately with get_events(include_details)
+  # and their slug values resolved to display titles by process_events_details.
+  # - title: Fetch Patrols
+  #   type: task-group
+  #   description: "Fetch patrols, observations, and patrol_information events from EarthRanger."
+  #   tasks:
+  #     - name: Set Patrol and Event Parameters
+  #       id: er_patrol_and_events_params
+  #       task: set_patrols_and_patrol_events_params
+  #       partial:
+  #         client: ${{ workflow.er_client_name.return }}
+  #         time_range: ${{ workflow.time_range.return }}
+  #         patrol_types: ${{ workflow.selected_patrol_types.return }}
+  #         event_types: []
+  #         include_patrol_details: true
+  #         raise_on_empty: false
+  #         include_null_geometry: true
+  #         truncate_to_time_range: true
+  #         sub_page_size: 100
+  #         patrols_overlap_daterange: true
+  #
+  #     - name: Get Patrols
+  #       id: prefetch_patrols
+  #       task: get_patrols_from_combined_params
+  #       partial:
+  #         combined_params: ${{ workflow.er_patrol_and_events_params.return }}
+  #
+  #     - name: Get Patrol Observations
+  #       id: patrol_obs
+  #       task: get_patrol_observations_from_patrols_df_and_combined_params
+  #       partial:
+  #         patrols_df: ${{ workflow.prefetch_patrols.return }}
+  #         combined_params: ${{ workflow.er_patrol_and_events_params.return }}
+  #
+  #     - name: Get Patrol Info Events
+  #       id: patrol_info_events_raw
+  #       task: get_events
+  #       partial:
+  #         client: ${{ workflow.er_client_name.return }}
+  #         time_range: ${{ workflow.time_range.return }}
+  #         event_types: ["patrol_information"]
+  #         include_details: true
+  #         include_null_geometry: true
+  #         raise_on_empty: false
+  #
+  #     - name: Process Event Details
+  #       id: patrol_info_events
+  #       task: process_events_details
+  #       partial:
+  #         df: ${{ workflow.patrol_info_events_raw.return }}
+  #         client: ${{ workflow.er_client_name.return }}
+  #         map_to_titles: true
+  #         ordered: true
+
+  # Phase 2 stand-ins: local mmnr sample data (resources/mock-data/)
+  - name: Load Patrol Observations
+    id: patrol_obs
+    task: ecoscope_workflows_ext_custom.tasks.io.load_df
+    partial:
+      deserialize_json: false
+
+  - name: Load Patrol Info Events
+    id: patrol_info_events
+    task: ecoscope_workflows_ext_custom.tasks.io.load_df
+    partial:
+      # revive event_details dicts and the patrols id list from JSON strings
+      deserialize_json: true
+
+  - title: Patrol Attributes
+    type: task-group
+    description: "Extract ranger, mandate, team, and transport attributes from patrol_information events."
+    tasks:
+      # Each patrol_information event links to its patrol via the `patrols`
+      # id list (always a single id) — explode to a scalar and rename.
+      - name: Explode Patrol Ids
+        id: explode_event_patrols
+        task: explode
+        partial:
+          df: ${{ workflow.patrol_info_events.return }}
+          column_name: "patrols"
+          ignore_index: true
+
+      - name: Rename Patrol Id Column
+        id: event_patrol_id
+        task: map_columns
+        partial:
+          df: ${{ workflow.explode_event_patrols.return }}
+          rename_columns:
+            patrols: "patrol_id"
+          drop_columns: []
+          retain_columns: []
+          raise_if_not_found: true
+
+      # field_name_options lead with the title-form keys produced by
+      # process_events_details(map_to_titles=true); raw schema keys are kept
+      # as fallbacks in case details arrive unmapped.
+      - name: Extract Ranger Name
+        id: extract_ranger_name
+        task: extract_value_from_json_column
+        partial:
+          df: ${{ workflow.event_patrol_id.return }}
+          column_name: "event_details"
+          field_name_options: ["Patrol leader", "Team_leader"]
+          output_type: "str"
+          output_column_name: "ranger_name"
+
+      - name: Extract Mandate
+        id: extract_mandate
+        task: extract_value_from_json_column
+        partial:
+          df: ${{ workflow.extract_ranger_name.return }}
+          column_name: "event_details"
+          field_name_options: ["Mandate", "mandate"]
+          output_type: "str"
+          output_column_name: "patrol_mandate"
+
+      - name: Extract Team Name
+        id: extract_team_name
+        task: extract_value_from_json_column
+        partial:
+          df: ${{ workflow.extract_mandate.return }}
+          column_name: "event_details"
+          field_name_options: ["Team name", "Team_name"]
+          output_type: "str"
+          output_column_name: "team_name"
+
+      - name: Extract Transport
+        id: extract_transport
+        task: extract_value_from_json_column
+        partial:
+          df: ${{ workflow.extract_team_name.return }}
+          column_name: "event_details"
+          field_name_options: ["Transport type", "Transport_type"]
+          output_type: "str"
+          output_column_name: "patrol_transport"
+
+      - name: Retain Attribute Columns
+        id: patrol_attribute_columns
+        task: map_columns
+        partial:
+          df: ${{ workflow.extract_transport.return }}
+          rename_columns: {}
+          drop_columns: []
+          retain_columns: ["patrol_id", "ranger_name", "patrol_mandate", "team_name", "patrol_transport"]
+          raise_if_not_found: false
+
+      - name: Deduplicate Patrol Attributes
+        id: patrol_attributes
+        task: apply_sql_query
+        partial:
+          df: ${{ workflow.patrol_attribute_columns.return }}
+          query: >
+            SELECT patrol_id,
+                   MAX(ranger_name) AS ranger_name,
+                   MAX(patrol_mandate) AS patrol_mandate,
+                   MAX(team_name) AS team_name,
+                   MAX(patrol_transport) AS patrol_transport
+            FROM df GROUP BY patrol_id
+
   - name: Convert Patrol Observations to Timezone
-    id: convert_patrols_to_user_timezone
+    id: convert_obs_to_user_timezone
     task: convert_values_to_timezone
     partial:
       df: ${{ workflow.patrol_obs.return }}
       timezone: ${{ workflow.get_timezone.return }}
-      columns: ["fixtime"]
+      columns: ["fixtime", "patrol_start_time", "patrol_end_time"]
 
   - title: Process Patrol Observations
     type: task-group
     description: >-
-      Process patrol observations by applying filters and column transformations.
+      Filter observations, build trajectories, join patrol attributes, and
+      derive the patrol area.
     tasks:
       - name: Remove Column Prefix Extra
         id: drop_extra_prefix_obs
         task: drop_column_prefix
         partial:
-          df: ${{ workflow.convert_patrols_to_user_timezone.return }}
+          df: ${{ workflow.convert_obs_to_user_timezone.return }}
           prefix: "extra__"
           duplicate_strategy: "suffix"
+
+      - name: Rename Patrol Columns
+        id: rename_patrol_columns
+        task: map_columns
+        partial:
+          df: ${{ workflow.drop_extra_prefix_obs.return }}
+          # the raw `patrol_type` column holds the type UUID — drop it so the
+          # slug (patrol_type__value) can take its name
+          drop_columns: ["patrol_type"]
+          rename_columns:
+            patrol_type__value: "patrol_type"
+            patrol_type__display: "patrol_type_display"
+          retain_columns: []
+          raise_if_not_found: false
 
       - name: Filter Observation Relocations
         id: filter_patrol_obs
         task: apply_reloc_coord_filter
         partial:
-          df: ${{ workflow.drop_extra_prefix_obs.return }}
+          df: ${{ workflow.rename_patrol_columns.return }}
           roi_gdf: null
           roi_name: null
           reset_index: false
@@ -120,7 +360,8 @@ workflow:
         partial:
           relocations: ${{ workflow.filter_patrol_obs.return }}
 
-      - name: Remove Column Prefix Extra
+      # relocations_to_trajectory re-prefixes passthrough columns with extra__
+      - name: Remove Trajectory Column Prefix
         id: drop_extra_prefix_traj
         task: drop_column_prefix
         partial:
@@ -128,23 +369,45 @@ workflow:
           prefix: "extra__"
           duplicate_strategy: "suffix"
 
-      - name: Internally Process Columns
-        id: customize_columns_internally
-        task: map_columns
+      - name: Join Patrol Attributes
+        id: traj_with_attributes
+        task: ecoscope_workflows_ext_custom.tasks.transformation.merge_two_dataframes
         partial:
-          df: ${{ workflow.drop_extra_prefix_traj.return }}
-          rename_columns: {}
-          drop_columns: ["id", "track"]
-          retain_columns: []
-          raise_if_not_found: false
+          left: ${{ workflow.drop_extra_prefix_traj.return }}
+          right: ${{ workflow.patrol_attributes.return }}
+          how: "left"
+          on: "patrol_id"
+          fillna_value: "Unknown"
 
-      - name: Add temporal index to Patrol Trajectories
+      - name: Copy Patrol Type Column
+        id: copy_patrol_type
+        task: extract_column_as_type
+        partial:
+          df: ${{ workflow.traj_with_attributes.return }}
+          column_name: "patrol_type"
+          output_type: "str"
+          output_column_name: "patrol_area"
+
+      - name: Derive Patrol Area
+        id: derive_patrol_area
+        task: map_values
+        partial:
+          df: ${{ workflow.copy_patrol_type.return }}
+          column_name: "patrol_area"
+          # Derived from the Report Scope lists — same source of truth as the
+          # fetch list, so the two cannot drift apart.
+          value_map: ${{ workflow.patrol_area_value_map.return }}
+          missing_values: "replace"
+          replacement: "Unknown"
+
+      - name: Add Temporal Index
         id: traj_add_temporal_index
         task: add_temporal_index
         partial:
-          df: ${{ workflow.customize_columns_internally.return }}
+          df: ${{ workflow.derive_patrol_area.return }}
           time_col: "segment_start"
           groupers:
+            - index_name: "patrol_area"
             - index_name: "patrol_mandate"
           cast_to_datetime: true
           format: "mixed"
@@ -155,15 +418,24 @@ workflow:
         partial:
           df: ${{ workflow.traj_add_temporal_index.return }}
           colormap: ["#FF9600", "#F23B0E", "#A100CB", "#F04564", "#03421A", "#3089FF", "#E26FFF", "#8C1700", "#002960", "#FFD000", "#B62879", "#680078", "#005A56", "#0056C7", "#331878", "#E76826"]
-          input_column_name: "station"
-          output_column_name: "patrol_traj_colormap"
+          input_column_name: "team_name"
+          output_column_name: "team_colormap"
 
-  - name: Split Patrol Trajectories by Group
-    id: split_patrol_traj_groups
+  - name: Split Trajectories by Area
+    id: split_by_area
     task: split_groups
     partial:
       df: ${{ workflow.traj_colormap.return }}
       groupers:
+        - index_name: "patrol_area"
+
+  - name: Split Trajectories by Area and Mandate
+    id: split_map_groups
+    task: split_groups
+    partial:
+      df: ${{ workflow.traj_colormap.return }}
+      groupers:
+        - index_name: "patrol_area"
         - index_name: "patrol_mandate"
 
   - name: Persist Patrol Trajectories
@@ -175,324 +447,7 @@ workflow:
       sanitize: true
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.split_patrol_traj_groups.return }}
-    skipif:
-      conditions:
-        - never
-
-  - title: Generate Maps
-    type: task-group
-    description: >-
-      Generate maps to visualize patrol trajectories.
-    tasks:
-      - name: "Set Patrol Map Title"
-        id: set_patrol_map_title
-        task: set_string_var
-        partial:
-          var: "Patrol Trajectories Map"
-
-      - name: Base Maps
-        id: base_map_defs
-        task: set_base_maps
-
-      - name: Rename Trajectory Columns for Display
-        id: rename_traj_display_columns
-        task: map_columns
-        partial:
-          drop_columns: []
-          retain_columns: []
-          raise_if_not_found: false
-          rename_columns:
-            segment_start: "Start Time"
-            timespan_seconds: "Duration (s)"
-            speed_kmhr: "Speed (kph)"
-        mapvalues:
-          argnames: df
-          argvalues: ${{ workflow.split_patrol_traj_groups.return }}
-
-      - name: Create Trajectory Map Layers
-        id: patrol_traj_map_layers
-        task: create_polyline_layer
-        skipif:
-          conditions:
-            - any_is_empty_df
-            - any_dependency_skipped
-            - all_geometry_are_none
-        partial:
-          layer_style:
-            get_width: 3
-            width_units: "pixels"
-            color_column: "patrol_traj_colormap"
-          legend:
-            label_column: "station"
-            color_column: "patrol_traj_colormap"
-          tooltip_columns: ["Start Time", "Duration (s)", "Speed (kph)"]
-        mapvalues:
-          argnames: geodataframe
-          argvalues: ${{ workflow.rename_traj_display_columns.return }}
-
-      - name: Draw Ecomaps
-        id: traj_ecomap
-        task: draw_ecomap
-        partial:
-          title: null
-          tile_layers: ${{ workflow.base_map_defs.return }}
-          north_arrow_style:
-            placement: "top-left"
-          legend_style:
-            placement: "bottom-right"
-          static: false
-          max_zoom: 20
-        mapvalues:
-          argnames: geo_layers
-          argvalues: ${{ workflow.patrol_traj_map_layers.return }}
-
-      - name: Persist Ecomaps
-        id: traj_ecomap_html_urls
-        task: persist_text
-        partial:
-          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-          filename_suffix: "patrol_map"
-        mapvalues:
-          argnames: text
-          argvalues: ${{ workflow.traj_ecomap.return }}
-
-  - title: Transport Summary
-    type: task-group
-    description: >-
-      Summarize patrol data by transport type and generate a bar chart.
-    tasks:
-      - name: Summarize by Transport Type
-        id: transport_summary
-        task: summarize_df
-        partial:
-          df: ${{ workflow.customize_columns_internally.return }}
-          groupby_cols: ["patrol_transport"]
-          summary_params:
-            - display_name: "Patrol Count"
-              aggregator: nunique
-              column: patrol_id
-            - display_name: "Total Distance (km)"
-              aggregator: sum
-              column: dist_meters
-              original_unit: "m"
-              new_unit: "km"
-            - display_name: "Total Duration (hours)"
-              aggregator: sum
-              column: timespan_seconds
-              original_unit: "s"
-              new_unit: "h"
-              decimal_places: 1
-          reset_index: false
-
-      - name: Summarize by Station
-        id: station_summary
-        task: summarize_df
-        partial:
-          df: ${{ workflow.customize_columns_internally.return }}
-          groupby_cols: ["station"]
-          summary_params:
-            - display_name: "Patrol Count"
-              aggregator: nunique
-              column: patrol_id
-            - display_name: "Total Distance (km)"
-              aggregator: sum
-              column: dist_meters
-              original_unit: "m"
-              new_unit: "km"
-            - display_name: "Total Duration (hours)"
-              aggregator: sum
-              column: timespan_seconds
-              original_unit: "s"
-              new_unit: "h"
-              decimal_places: 1
-          reset_index: true
-
-      - name: Draw Station Bar Chart
-        id: patrol_bar_chart
-        task: draw_bar_chart
-        partial:
-          dataframe: ${{ workflow.station_summary.return }}
-          category: "station"
-          layout_kwargs: null
-          bar_chart_configs:
-            - label: "Total Distance (km)"
-              column: "Total Distance (km)"
-              agg_func: "sum"
-              show_label: true
-              style:
-                marker_color: "#35b779"
-            - label: "Total Duration (hours)"
-              column: "Total Duration (hours)"
-              agg_func: "sum"
-              show_label: true
-              style:
-                marker_color: "#31688e"
-
-      - name: Persist Bar Chart
-        id: persist_bar_chart
-        task: persist_text
-        partial:
-          text: ${{ workflow.patrol_bar_chart.return }}
-          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-          filename_suffix: "transport_bar_chart"
-
-      - name: Persist Transport Summary
-        id: persist_transport_summary
-        task: persist_df_wrapper
-        partial:
-          df: ${{ workflow.transport_summary.return }}
-          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-          filename_prefix: "transport_summary"
-          filetypes: ["csv"]
-          sanitize: true
-        skipif:
-          conditions:
-            - never
-
-  - title: Mandate Summary
-    type: task-group
-    description: >-
-      Summarize patrol data by mandate type.
-    tasks:
-      - name: Summarize by Mandate
-        id: mandate_summary
-        task: summarize_df
-        partial:
-          df: ${{ workflow.customize_columns_internally.return }}
-          groupby_cols: ["patrol_mandate"]
-          summary_params:
-            - display_name: "Patrol Count"
-              aggregator: nunique
-              column: patrol_id
-            - display_name: "Total Distance (km)"
-              aggregator: sum
-              column: dist_meters
-              original_unit: "m"
-              new_unit: "km"
-            - display_name: "Total Duration (hours)"
-              aggregator: sum
-              column: timespan_seconds
-              original_unit: "s"
-              new_unit: "h"
-              decimal_places: 1
-          reset_index: false
-
-      - name: Persist Mandate Summary
-        id: persist_mandate_summary
-        task: persist_df_wrapper
-        partial:
-          df: ${{ workflow.mandate_summary.return }}
-          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-          filename_prefix: "mandate_summary"
-          filetypes: ["csv"]
-          sanitize: true
-        skipif:
-          conditions:
-            - never
-
-  - title: Ranger Summary
-    type: task-group
-    description: >-
-      Summarize ranger patrol activity by station.
-    tasks:
-      - name: Set Station Grouper
-        id: station_groupers
-        task: set_groupers
-        partial:
-          groupers:
-            - index_name: "station"
-
-      - name: Split by Station
-        id: split_by_station
-        task: split_groups
-        partial:
-          df: ${{ workflow.customize_columns_internally.return }}
-          groupers: ${{ workflow.station_groupers.return }}
-
-      - name: Summarize Rangers per Station
-        id: ranger_summary
-        task: summarize_df
-        partial:
-          groupby_cols: ["patrol_leader_name"]
-          summary_params:
-            - display_name: "Patrol Count"
-              aggregator: nunique
-              column: patrol_id
-            - display_name: "Total Distance (km)"
-              aggregator: sum
-              column: dist_meters
-              original_unit: "m"
-              new_unit: "km"
-            - display_name: "Total Duration (hours)"
-              aggregator: sum
-              column: timespan_seconds
-              original_unit: "s"
-              new_unit: "h"
-              decimal_places: 1
-          reset_index: false
-        mapvalues:
-          argnames: df
-          argvalues: ${{ workflow.split_by_station.return }}
-
-      - name: Persist Ranger Summary
-        id: persist_ranger_summary
-        task: persist_df_wrapper
-        partial:
-          root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-          filename_prefix: "ranger_summary"
-          filetypes: ["csv"]
-          sanitize: true
-        mapvalues:
-          argnames: df
-          argvalues: ${{ workflow.ranger_summary.return }}
-        skipif:
-          conditions:
-            - never
-
-  - name: Set Report Groupers
-    id: report_groupers
-    task: set_groupers
-    partial:
-      groupers:
-        - index_name: "patrol_mandate"
-        - index_name: "station"
-
-  - name: Create Patrol Report
-    id: create_patrol_report
-    task: ecoscope_workflows_ext_custom.tasks.results.create_docx
-    partial:
-      context:
-        items:
-          - item_type: timerange
-            key: report_date
-            value: ${{ workflow.time_range.return }}
-            format: "%b %Y"
-          - item_type: image
-            key: patrol_maps
-            value: ${{ workflow.traj_ecomap_html_urls.return }}
-            screenshot_config:
-              wait_for_timeout: 20000
-              max_concurrent_pages: 2
-              device_scale_factor: 1.0
-          - item_type: image
-            key: bar_chart
-            value: ${{ workflow.persist_bar_chart.return }}
-            screenshot_config:
-              wait_for_timeout: 0
-              max_concurrent_pages: 2
-          - item_type: table
-            key: transport_summary
-            value: ${{ workflow.transport_summary.return }}
-          - item_type: table
-            key: mandate_summary
-            value: ${{ workflow.mandate_summary.return }}
-          - item_type: table
-            key: ranger_summary
-            value: ${{ workflow.ranger_summary.return }}
-      groupers: ${{ workflow.report_groupers.return }}
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename_prefix: mt_patrols_report
+      argvalues: ${{ workflow.split_by_area.return }}
     skipif:
       conditions:
         - never
@@ -504,5 +459,5 @@ workflow:
       details: ${{ workflow.workflow_details.return }}
       widgets: []
       groupers:
-        - index_name: "patrol_mandate"
+        - index_name: "patrol_area"
       time_range: ${{ workflow.time_range.return }}
