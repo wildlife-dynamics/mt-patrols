@@ -70,6 +70,14 @@ rjsf-overrides:
         opacity: 1
     create_patrol_report.properties.template_path.default: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx"
 
+  uiSchema:
+    # hide the residual required-asterisk label on the scope dropdown and the
+    # "-1*" item labels on the patrol-type lists (label: false removes the
+    # whole label row; same pattern as filter_point_coords on main)
+    Report Scope.report_scope.var.ui:options.label: false
+    Report Scope.triangle_patrol_types.vars.items.ui:options.label: false
+    Report Scope.reserve_patrol_types.vars.items.ui:options.label: false
+
 task-instance-defaults:
   skipif:
     conditions:

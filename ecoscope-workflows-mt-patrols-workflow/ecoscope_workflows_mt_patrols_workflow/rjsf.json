@@ -538,7 +538,32 @@
         "report_scope",
         "triangle_patrol_types",
         "reserve_patrol_types"
-      ]
+      ],
+      "report_scope": {
+        "var": {
+          "ui:options": {
+            "label": false
+          }
+        }
+      },
+      "triangle_patrol_types": {
+        "vars": {
+          "items": {
+            "ui:options": {
+              "label": false
+            }
+          }
+        }
+      },
+      "reserve_patrol_types": {
+        "vars": {
+          "items": {
+            "ui:options": {
+              "label": false
+            }
+          }
+        }
+      }
     },
     "create_patrol_report": {
       "ui:order": [
