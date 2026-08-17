@@ -58,7 +58,7 @@ base:
         - layer_name: "TERRAIN"
           opacity: 1
     create_patrol_report:
-      template_path: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/migrate-to-er/resources/templates/mt_patrols_report_template.docx"
+      template_path: "../resources/templates/mt_patrols_report_template.docx"
 
 live:
   name: Live mmnr Test Case
@@ -109,5 +109,5 @@ live:
         - layer_name: "TERRAIN"
           opacity: 1
     create_patrol_report:
-      template_path: "https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/migrate-to-er/resources/templates/mt_patrols_report_template.docx"
+      template_path: "../resources/templates/mt_patrols_report_template.docx"
 
