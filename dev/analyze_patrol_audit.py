@@ -1,7 +1,17 @@
-"""Audit July patrols per side (Triangle/Reserve) from audit_data.json:
+"""Audit patrols per side (Triangle/Reserve) from audit_data.json:
 1. missing patrol_information
 2. patrol type vs patrol info mismatch (mandate / transport / team)
 3. patrol info present but fields missing
+
+Usage: run fetch_patrol_audit.py first (writes audit_data.json to the cwd),
+then run this from the same directory; it prints the report to stdout.
+Needs only the stdlib, so plain `python3` works.
+
+Side classification comes from the patrol-type display suffix
+"(Triangle)"/"(Reserve)"; unlabeled types (Cheetah Monitoring, Operations)
+are excluded. The team check compares that side against the patrol info
+Team_name prefix (triangle_* / res_*). If new patrol types or team-name
+prefixes appear, update MANDATE_MAP / team_side accordingly.
 """
 import json
 import os

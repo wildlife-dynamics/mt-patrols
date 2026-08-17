@@ -1,4 +1,23 @@
-"""Fetch July 2026 (EAT) patrols + patrol_information events from mmnr, persist to audit_data.json."""
+"""Fetch patrols + their patrol_information events from mmnr for a data audit.
+
+Usage:
+    cd <some scratch dir>   # audit_data.json is written to the cwd
+    pixi run -w ecoscope-dev python .../dev/fetch_patrol_audit.py
+    pixi run -w ecoscope-dev python .../dev/analyze_patrol_audit.py
+
+Requires the mmnr connection env vars
+(ecoscope_workflows__connections__earthranger__mmnr__{server,username,password});
+any env with `requests` works, ecoscope-dev has it.
+
+To audit a different month, edit LOWER/UPPER below (EAT month = UTC window
+shifted back 3h). A patrol counts as in-month if its first segment *starts*
+inside the window; the date_range filter alone returns patrols that merely
+overlap it.
+
+Gotchas encoded here: the patrols API can return duplicate records across
+pages (dedupe by serial_number), and segments reference patrol types by
+value, not id.
+"""
 import json
 import os
 import sys
