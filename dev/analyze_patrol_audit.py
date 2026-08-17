@@ -30,18 +30,13 @@ def expected(disp):
     return MANDATE_MAP.get(mand_name), transport.lower() if transport else None
 
 
-def tokens(name):
-    return [t for t in re.split(r"[^a-z]+", (name or "").lower()) if len(t) > 1]
-
-
-def is_person(leader):
-    # tracker devices look like "Cheetah 2", "SP051294-MMNR-..."; people have no digits
-    return bool(leader) and not re.search(r"\d", leader)
-
-
-def person_matches(leader, candidate):
-    lt, ct = tokens(leader), tokens(candidate)
-    return bool(lt) and bool(ct) and lt[0] in ct and lt[-1] in ct
+def team_side(team_name):
+    # Team_name values encode the side: "triangle_puru" vs "res_keek"
+    if (team_name or "").startswith("triangle_"):
+        return "Triangle"
+    if (team_name or "").startswith("res_"):
+        return "Reserve"
+    return None
 
 
 for side in ("Triangle", "Reserve"):
@@ -61,7 +56,6 @@ for side in ("Triangle", "Reserve"):
 
     # Q2: type vs info mismatches
     mm_mand, mm_trans, mm_team = [], [], []
-    team_checkable = 0
     for r in withinfo:
         exp_m, exp_t = expected(r["ptype_display"])
         evs = [events[i] for i in r["pinfo_ids"] if i in events]
@@ -72,14 +66,10 @@ for side in ("Triangle", "Reserve"):
             mm_mand.append((r["serial"], r["ptype_display"], sorted(got_m)))
         if exp_t and got_t and exp_t not in got_t:
             mm_trans.append((r["serial"], r["ptype_display"], sorted(got_t)))
-        if is_person(r["leader"]):
-            team_checkable += 1
-            names = []
-            for dt in dets:
-                names.append(dt.get("Team_leader") or "")
-                names.extend(dt.get("Team_members") or [])
-            if not any(person_matches(r["leader"], n) for n in names):
-                mm_team.append((r["serial"], r["leader"], sorted(n for n in names if n)))
+        team_sides = {(dt.get("Team_name"), team_side(dt.get("Team_name"))) for dt in dets if dt.get("Team_name")}
+        wrong = sorted(tn for tn, ts in team_sides if ts and ts != side)
+        if wrong:
+            mm_team.append((r["serial"], r["ptype_display"], wrong))
     any_mm = sorted({s for s, *_ in mm_mand} | {s for s, *_ in mm_trans} | {s for s, *_ in mm_team})
     print(f"\nQ2. type vs patrol-info mismatch (any field): {len(any_mm)}/{len(withinfo)} -> {any_mm}")
     print(f"    mandate mismatches: {len(mm_mand)}")
@@ -88,9 +78,9 @@ for side in ("Triangle", "Reserve"):
     print(f"    transport mismatches: {len(mm_trans)}")
     for s, ty, got in mm_trans:
         print(f"      #{s}  {ty}  -> info transport: {got}")
-    print(f"    team mismatches (patrol leader not in info team; only {team_checkable} patrols have a person leader): {len(mm_team)}")
-    for s, ld, names in mm_team:
-        print(f"      #{s}  leader {ld!r}  -> info team: {names}")
+    print(f"    team mismatches (Team_name belongs to the other side): {len(mm_team)}")
+    for s, ty, names in mm_team:
+        print(f"      #{s}  {ty}  -> info team name: {names}")
 
     # Q3: patrol info present but fields missing
     core = ["Mandate", "Transport_type", "Team_leader", "Team_members"]
