@@ -17,8 +17,8 @@ base:
       name: "Mara Triangle Patrol Report"
       description: "Patrol activity from EarthRanger (mmnr)"
     time_range:
-      since: "2026-07-01T00:00:00Z"
-      until: "2026-07-31T23:59:59Z"
+      since: "2026-07-01T00:00:00"
+      until: "2026-07-31T23:59:59"
       timezone:
         label: "(GMT+03:00) Nairobi"
         tzCode: "Africa/Nairobi"
@@ -68,8 +68,8 @@ live:
       name: "Mara Triangle Patrol Report"
       description: "Patrol activity from EarthRanger (mmnr)"
     time_range:
-      since: "2026-07-01T00:00:00Z"
-      until: "2026-07-31T23:59:59Z"
+      since: "2026-07-01T00:00:00"
+      until: "2026-07-31T23:59:59"
       timezone:
         label: "(GMT+03:00) Nairobi"
         tzCode: "Africa/Nairobi"
