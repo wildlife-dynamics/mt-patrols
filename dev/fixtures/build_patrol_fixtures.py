@@ -114,6 +114,12 @@ for day, (slug, display, area) in enumerate(PATROL_TYPES + PATROL_TYPES[:3]):
         )
     )
 
+    # 1-3 team members per event; every fifth serial lists the leader among
+    # the members too, exercising the roster UNION dedup
+    members = [RANGERS[(serial + 1 + i) % len(RANGERS)] for i in range(serial % 3 + 1)]
+    if serial % 5 == 0:
+        members[0] = ranger
+
     # two patrols deliberately get NO patrol_information event to exercise
     # the "Unknown" attribute fallback
     if serial % 6 != 0:
@@ -129,7 +135,7 @@ for day, (slug, display, area) in enumerate(PATROL_TYPES + PATROL_TYPES[:3]):
                     {
                         "Team name": team,
                         "Patrol leader": ranger,
-                        "Team members": [RANGERS[(serial + 1) % len(RANGERS)]],
+                        "Team members": members,
                         "Armed?": bool(serial % 2),
                         "Mandate": MANDATES[slug],
                         "Transport type": TRANSPORTS[serial % 2],

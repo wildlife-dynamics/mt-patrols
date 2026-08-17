@@ -498,6 +498,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             column_name="event_details",
             field_name_options=["Patrol leader", "Team_leader"],
             output_type="str",
+            fan_out=True,
             output_column_name="ranger_name",
             **(params.get("extract_ranger_name") or {}),
         )
@@ -522,6 +523,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             column_name="event_details",
             field_name_options=["Mandate", "mandate"],
             output_type="str",
+            fan_out=True,
             output_column_name="patrol_mandate",
             **(params.get("extract_mandate") or {}),
         )
@@ -546,6 +548,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             column_name="event_details",
             field_name_options=["Team name", "Team_name"],
             output_type="str",
+            fan_out=True,
             output_column_name="team_name",
             **(params.get("extract_team_name") or {}),
         )
@@ -570,6 +573,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             column_name="event_details",
             field_name_options=["Transport type", "Transport_type"],
             output_type="str",
+            fan_out=True,
             output_column_name="patrol_transport",
             **(params.get("extract_transport") or {}),
         )
@@ -625,6 +629,100 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             columns=None,
             sanitize=True,
             **(params.get("patrol_attributes") or {}),
+        )
+        .call()
+    )
+
+    extract_team_members = (
+        task(extract_value_from_json_column)
+        .validate()
+        .set_task_instance_id("extract_team_members")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_ranger_name,
+            column_name="event_details",
+            field_name_options=["Team members", "Team_members"],
+            output_type="series",
+            fan_out=False,
+            output_column_name="team_members",
+            **(params.get("extract_team_members") or {}),
+        )
+        .call()
+    )
+
+    roster_columns = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("roster_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=extract_team_members,
+            rename_columns={},
+            drop_columns=[],
+            retain_columns=["patrol_id", "ranger_name", "team_members"],
+            raise_if_not_found=False,
+            **(params.get("roster_columns") or {}),
+        )
+        .call()
+    )
+
+    explode_team_members = (
+        task(explode)
+        .validate()
+        .set_task_instance_id("explode_team_members")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=roster_columns,
+            column_name="team_members",
+            ignore_index=True,
+            **(params.get("explode_team_members") or {}),
+        )
+        .call()
+    )
+
+    ranger_roster = (
+        task(apply_sql_query)
+        .validate()
+        .set_task_instance_id("ranger_roster")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=explode_team_members,
+            query="SELECT patrol_id, ranger_name FROM df WHERE ranger_name IS NOT NULL UNION SELECT patrol_id, team_members AS ranger_name FROM df WHERE team_members IS NOT NULL\n",
+            columns=None,
+            sanitize=True,
+            **(params.get("ranger_roster") or {}),
         )
         .call()
     )
@@ -818,6 +916,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             df=traj_with_attributes,
             column_name="patrol_type",
             output_type="str",
+            fan_out=True,
             output_column_name="patrol_area",
             **(params.get("copy_patrol_type") or {}),
         )
@@ -1372,6 +1471,58 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .mapvalues(argnames=["df"], argvalues=team_summary)
     )
 
+    traj_for_rangers = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("traj_for_rangers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=traj_colormap,
+            rename_columns={},
+            drop_columns=["ranger_name"],
+            retain_columns=[],
+            raise_if_not_found=True,
+            **(params.get("traj_for_rangers") or {}),
+        )
+        .call()
+    )
+
+    traj_with_roster = (
+        task(merge_two_dataframes)
+        .validate()
+        .set_task_instance_id("traj_with_roster")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            left=traj_for_rangers,
+            right=ranger_roster,
+            how="left",
+            on="patrol_id",
+            left_on=None,
+            right_on=None,
+            left_index=False,
+            right_index=False,
+            fillna_value="Unknown",
+            **(params.get("traj_with_roster") or {}),
+        )
+        .call()
+    )
+
     ranger_groupers = (
         task(set_groupers)
         .validate()
@@ -1406,7 +1557,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            df=traj_colormap,
+            df=traj_with_roster,
             groupers=ranger_groupers,
             **(params.get("split_by_area_team") or {}),
         )
