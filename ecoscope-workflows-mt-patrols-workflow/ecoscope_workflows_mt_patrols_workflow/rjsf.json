@@ -20,11 +20,11 @@
       "description": "Add information that will help to differentiate this workflow from another.",
       "title": "Workflow Details"
     },
-    "smart_client_name": {
+    "er_client_name": {
       "additionalProperties": false,
       "properties": {
         "data_source": {
-          "$ref": "#/$defs/SMARTConnection",
+          "$ref": "#/$defs/EarthRangerConnection",
           "title": "",
           "description": "Select one of your configured data sources."
         }
@@ -68,9 +68,94 @@
       "description": "Choose the period of time to analyze.",
       "title": "Time Range"
     },
+    "Report Scope": {
+      "type": "object",
+      "description": "Choose which areas the report covers.",
+      "ecoscope:task_group": true,
+      "properties": {
+        "report_scope": {
+          "additionalProperties": false,
+          "properties": {
+            "var": {
+              "title": " ",
+              "type": "string",
+              "enum": [
+                "Mara Triangle & Reserve",
+                "Mara Triangle only",
+                "Reserve only"
+              ],
+              "default": "Mara Triangle & Reserve"
+            }
+          },
+          "required": [
+            "var"
+          ],
+          "type": "object",
+          "title": "Report Scope"
+        },
+        "triangle_patrol_types": {
+          "additionalProperties": false,
+          "properties": {
+            "vars": {
+              "items": {
+                "type": "string"
+              },
+              "title": " ",
+              "type": "array",
+              "ecoscope:advanced": true,
+              "default": [
+                "rhino_monitoring_patrol",
+                "rhino_monitoring_vehicle_patrol",
+                "general_law_enforcement",
+                "law_enforcement_vehicle",
+                "anti_harass_patrol",
+                "anti_harass_vehicle",
+                "community_outreach",
+                "community_outreach_vehicle",
+                "k9_deploy",
+                "k9_training",
+                "rabies_vaccine",
+                "rabies_vaccine_vehicle"
+              ]
+            }
+          },
+          "required": [
+            "vars"
+          ],
+          "type": "object",
+          "title": "Mara Triangle Patrol Types",
+          "ecoscope:advanced": true
+        },
+        "reserve_patrol_types": {
+          "additionalProperties": false,
+          "properties": {
+            "vars": {
+              "items": {
+                "type": "string"
+              },
+              "title": " ",
+              "type": "array",
+              "ecoscope:advanced": true,
+              "default": [
+                "rhino_monitor_patrol_reserve",
+                "rhino_monitoring_veh_patrol_reserve",
+                "law_enforcement_veh_reserve",
+                "anti_harass_veh_reserve"
+              ]
+            }
+          },
+          "required": [
+            "vars"
+          ],
+          "type": "object",
+          "title": "Reserve Patrol Types",
+          "ecoscope:advanced": true
+        }
+      }
+    },
     "Process Patrol Observations": {
       "type": "object",
-      "description": "Process patrol observations by applying filters and column transformations.",
+      "description": "Filter observations, build trajectories, join patrol attributes, and derive the patrol area.",
       "ecoscope:task_group": true,
       "properties": {
         "patrol_traj": {
@@ -127,7 +212,7 @@
     },
     "Generate Maps": {
       "type": "object",
-      "description": "Generate maps to visualize patrol trajectories.",
+      "description": "Trajectory maps per patrol area and mandate, colored by team.",
       "ecoscope:task_group": true,
       "properties": {
         "base_map_defs": {
@@ -144,6 +229,7 @@
                 "title": "Base Layer",
                 "anyOf": [
                   {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -168,6 +254,7 @@
                     "type": "object"
                   },
                   {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
@@ -192,6 +279,7 @@
                     "type": "object"
                   },
                   {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -216,6 +304,7 @@
                     "type": "object"
                   },
                   {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
@@ -240,30 +329,7 @@
                     "type": "object"
                   },
                   {
-                    "properties": {
-                      "url": {
-                        "default": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-                        "title": "Preset Layer URL",
-                        "type": "string",
-                        "const": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-                        "enum": [
-                          "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}"
-                        ]
-                      },
-                      "opacity": {
-                        "default": 1,
-                        "description": "Set layer transparency from 1 (fully visible) to 0 (hidden).",
-                        "ecoscope:advanced": true,
-                        "maximum": 1.0,
-                        "minimum": 0.0,
-                        "title": "Layer Opacity",
-                        "type": "number"
-                      }
-                    },
-                    "title": "LandDx",
-                    "type": "object"
-                  },
-                  {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
@@ -288,6 +354,7 @@
                     "type": "object"
                   },
                   {
+                    "description": "A tiled raster layer loaded on-demand from a URL template (e.g., base maps).",
                     "properties": {
                       "url": {
                         "default": "https://example.tiles.com/{z}/{x}/{y}.png",
@@ -306,13 +373,13 @@
                         "type": "number"
                       },
                       "max_zoom": {
-                        "default": null,
+                        "default": 20,
                         "description": "Set the maximum zoom level to fetch tiles for.",
                         "title": "Custom Layer Max Zoom",
                         "type": "integer"
                       },
                       "min_zoom": {
-                        "default": null,
+                        "default": 0,
                         "description": "Set the minimum zoom level to fetch tiles for.",
                         "title": "Custom Layer Min Zoom",
                         "type": "integer"
@@ -353,7 +420,7 @@
     }
   },
   "$defs": {
-    "SMARTConnection": {
+    "EarthRangerConnection": {
       "properties": {
         "name": {
           "title": "Data Source",
@@ -363,7 +430,7 @@
       "required": [
         "name"
       ],
-      "title": "SMARTConnection",
+      "title": "EarthRangerConnection",
       "type": "object"
     },
     "TimezoneInfo": {
@@ -457,18 +524,30 @@
         "timezone"
       ]
     },
-    "ui:order": [
-      "workflow_details",
-      "smart_client_name",
-      "time_range",
-      "Process Patrol Observations",
-      "persist_patrol_traj",
-      "Generate Maps",
-      "create_patrol_report"
-    ],
-    "Process Patrol Observations": {
-      "filter_patrol_obs": {
-        "filter_point_coords": {
+    "Report Scope": {
+      "ui:order": [
+        "report_scope",
+        "triangle_patrol_types",
+        "reserve_patrol_types"
+      ],
+      "report_scope": {
+        "var": {
+          "ui:options": {
+            "label": false
+          }
+        }
+      },
+      "triangle_patrol_types": {
+        "vars": {
+          "items": {
+            "ui:options": {
+              "label": false
+            }
+          }
+        }
+      },
+      "reserve_patrol_types": {
+        "vars": {
           "items": {
             "ui:options": {
               "label": false
@@ -476,7 +555,17 @@
           }
         }
       }
-    }
+    },
+    "ui:order": [
+      "workflow_details",
+      "er_client_name",
+      "time_range",
+      "Report Scope",
+      "Process Patrol Observations",
+      "persist_patrol_traj",
+      "Generate Maps",
+      "create_patrol_report"
+    ]
   },
   "additionalProperties": false
 }

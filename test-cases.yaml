@@ -1,26 +1,109 @@
 base:
-  name: Base Test Case
-  mock_io: false
+  name: Base Test Case (mocked IO, synthetic fixtures)
+  mock_io: true
+  # All four fetch tasks are io-tagged; override their canned returns with
+  # SYNTHETIC fixtures (dev/fixtures/build_patrol_fixtures.py — real mmnr
+  # data is sensitive and never committed) shaped exactly like production:
+  # title-mapped event_details keys, `patrols` id list as a native arrow
+  # list so explode works after the parquet round-trip. The events fixture
+  # serves both get_events and process_events_details.
+  mock_io_overrides:
+    ecoscope.platform.tasks.io.get_patrols_from_combined_params: dev/fixtures/patrols.example-return.parquet
+    ecoscope.platform.tasks.io.get_patrol_observations_from_patrols_df_and_combined_params: dev/fixtures/patrol-obs.example-return.parquet
+    ecoscope.platform.tasks.io.get_events: dev/fixtures/patrol-info-events.example-return.parquet
+    ecoscope.platform.tasks.io.process_events_details: dev/fixtures/patrol-info-events.example-return.parquet
   params:
     workflow_details:
-      name: "MT Patrols"
-      description: "SMART patrol trajectories workflow"
+      name: "Mara Triangle Patrol Report"
+      description: "Patrol activity from EarthRanger (mmnr)"
     time_range:
-      since: "2026-02-01T00:00:00Z"
-      until: "2026-02-28T23:59:59Z"
-    smart_client_name:
+      since: "2026-07-01T00:00:00"
+      until: "2026-07-31T23:59:59"
+      timezone:
+        label: "(GMT+03:00) Nairobi"
+        tzCode: "Africa/Nairobi"
+        name: "East Africa Time"
+        utc: "+03:00"
+    er_client_name:
       data_source:
-        name: "mara_triangle"
-    # patrol_obs:
-    #   file_path: "/Users/yunwu/MEP/wt/mt-patrols/resources/mock-data/mock_patrol_reloc.parquet"
-    patrol_traj:
-      trajectory_segment_filter:
-        max_length_meters: 10000
+        name: "mmnr"
+    report_scope:
+      var: "Mara Triangle & Reserve"
+    triangle_patrol_types:
+      vars:
+        - "rhino_monitoring_patrol"
+        - "rhino_monitoring_vehicle_patrol"
+        - "general_law_enforcement"
+        - "law_enforcement_vehicle"
+        - "anti_harass_patrol"
+        - "anti_harass_vehicle"
+        - "community_outreach"
+        - "community_outreach_vehicle"
+        - "k9_deploy"
+        - "k9_training"
+        - "rabies_vaccine"
+        - "rabies_vaccine_vehicle"
+    reserve_patrol_types:
+      vars:
+        - "rhino_monitor_patrol_reserve"
+        - "rhino_monitoring_veh_patrol_reserve"
+        - "law_enforcement_veh_reserve"
+        - "anti_harass_veh_reserve"
     persist_patrol_traj:
       filetypes: ["parquet"]
     base_map_defs:
       base_maps:
-        - layer_name: "TOPO"
+        - layer_name: "TERRAIN"
           opacity: 1
     create_patrol_report:
-      template_path: https://raw.githubusercontent.com/wildlife-dynamics/mt-patrols/main/resources/templates/mt_patrols_report_template.docx
+      template_path: "../resources/templates/mt_patrols_report_template.docx"
+
+live:
+  name: Live mmnr Test Case
+  mock_io: false
+  params:
+    workflow_details:
+      name: "Mara Triangle Patrol Report"
+      description: "Patrol activity from EarthRanger (mmnr)"
+    time_range:
+      since: "2026-07-01T00:00:00"
+      until: "2026-07-31T23:59:59"
+      timezone:
+        label: "(GMT+03:00) Nairobi"
+        tzCode: "Africa/Nairobi"
+        name: "East Africa Time"
+        utc: "+03:00"
+    er_client_name:
+      data_source:
+        name: "mmnr"
+    report_scope:
+      var: "Mara Triangle & Reserve"
+    triangle_patrol_types:
+      vars:
+        - "rhino_monitoring_patrol"
+        - "rhino_monitoring_vehicle_patrol"
+        - "general_law_enforcement"
+        - "law_enforcement_vehicle"
+        - "anti_harass_patrol"
+        - "anti_harass_vehicle"
+        - "community_outreach"
+        - "community_outreach_vehicle"
+        - "k9_deploy"
+        - "k9_training"
+        - "rabies_vaccine"
+        - "rabies_vaccine_vehicle"
+    reserve_patrol_types:
+      vars:
+        - "rhino_monitor_patrol_reserve"
+        - "rhino_monitoring_veh_patrol_reserve"
+        - "law_enforcement_veh_reserve"
+        - "anti_harass_veh_reserve"
+    persist_patrol_traj:
+      filetypes: ["parquet"]
+    base_map_defs:
+      base_maps:
+        - layer_name: "TERRAIN"
+          opacity: 1
+    create_patrol_report:
+      template_path: "../resources/templates/mt_patrols_report_template.docx"
+
