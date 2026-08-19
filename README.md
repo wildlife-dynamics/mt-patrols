@@ -2,21 +2,23 @@
 
 ## Introduction
 
-This workflow helps you to process, visualize, and summarize SMART patrol data for the Mara Triangle conservancy.
+This workflow helps you to process, visualize, and summarize ranger patrol activity for the Mara Triangle and the Maasai Mara National Reserve using patrol data stored in **EarthRanger**.
 
 **What this workflow does:**
-- Downloads patrol observation data from **SMART** via a configured data source in Ecoscope Desktop
-- Processes observations by converting timezones, filtering coordinates, and building trajectory segments
-- Generates interactive maps showing patrol trajectories color-coded by station
-- Summarizes patrol activity by transport type, mandate, station, and individual ranger
-- Creates bar charts comparing station-level distance and duration
-- Exports data and summary tables in multiple formats (CSV, Parquet)
-- Generates a Word (.docx) report with maps, charts, and summary tables
+- Downloads patrols, patrol observations, and **patrol_info** events from your EarthRanger site
+- Enriches each patrol with its ranger, team, mandate, and transport attributes from the **patrol_info** event
+- Assigns every patrol to a patrol area (**Mara Triangle** or **Reserve**) based on its patrol type
+- Builds patrol trajectories and generates interactive maps for each patrol area and mandate, color-coded by team
+- Summarizes patrol effort (distance and duration) by transport type, mandate, and team for each area
+- Creates bar charts comparing team-level distance and duration per area
+- Lists individual ranger totals per team in each area
+- Exports data and summary tables (CSV, Parquet)
+- Generates a Word (.docx) report with three chapters: Trajectory Maps, Patrol Summary, and Ranger Summary
 
 **Who should use this:**
-- Conservation managers monitoring ranger patrol coverage in the Mara Triangle
-- Operations staff tracking patrol effort by station, mandate, or transport type
-- Anyone needing to visualize and report on SMART patrol trajectory data
+- Conservation managers monitoring ranger patrol coverage in the Mara Triangle and the Reserve
+- Operations staff tracking patrol effort by team, mandate, or transport type
+- Anyone needing a recurring patrol activity report from EarthRanger patrol data
 
 ---
 
@@ -27,14 +29,20 @@ Before using this workflow, you need:
 1. **Ecoscope Desktop** installed on your computer
    - If you haven't installed it yet, please follow the installation instructions for Ecoscope Desktop
 
-2. **SMART Data Source** configured in Ecoscope Desktop
-   - You must have already set up a connection to your SMART server
+2. **EarthRanger Data Source** configured in Ecoscope Desktop
+   - You must have already set up a connection to your EarthRanger server
    - Your data source should be configured with proper authentication credentials
-   - You'll need to know the name of your configured data source (e.g., `"mara_triangle"`)
+   - You'll need to know the name of your configured data source (e.g., `"mmnr"`)
 
-3. **A Word template file** (.docx) for report generation
+3. **Patrols with `patrol_info` events** set up in EarthRanger
+   - Each patrol should have a **patrol_info** event attached that records the ranger name, patrol leader, team members, team name, mandate, and transport
+   - Patrols without a **patrol_info** event still appear in the report with their attributes shown as `Unknown`
+   - Patrol types must follow the site's naming convention that distinguishes Mara Triangle patrol types from Reserve patrol types (e.g., `law_enforcement_reserve` for the Reserve)
+   - You can review patrol and event types at `https://<your-site>.pamdas.org/admin/activity/eventtype/`
+
+4. **A Word template file** (.docx) for report generation
    - This template uses Jinja2 placeholders to insert maps, charts, and tables
-   - A default template is provided with the workflow in the `resources/templates/` folder
+   - A default template is provided with the workflow in the `resources/templates/` folder and is preconfigured — you only need to change it for a custom report design
 
 ---
 
@@ -55,61 +63,71 @@ Before using this workflow, you need:
 Add information that will help to differentiate this workflow from another.
 
 - **Workflow Name** (required): A name to identify this workflow run
-  - Example: `"MT Patrols"`
+  - Example: `"Mara Triangle Patrol Report"`
 - **Workflow Description** (optional): A short description of the workflow
-  - Example: `"SMART patrol trajectories workflow"`
+  - Example: `"Patrol activity from EarthRanger (mmnr)"`
 
 #### 2. Data Source
-Select one of your configured SMART data sources.
+Select the EarthRanger connection to pull patrol data from.
 
-- **Data Source** (required): The name of your configured SMART connection in Ecoscope Desktop
-  - Example: `"mara_triangle"`
-  - Note: This must match the name exactly as configured in your data sources
+- **Data Source** (required): The name of your configured EarthRanger data source
+  - Example: `"mmnr"`
+  - Note: The **patrol_info** event type must exist on the selected server
 
 #### 3. Time Range
-Choose the period of time to analyze.
+Set the reporting period. Patrols overlapping this range are included, and observations are truncated to the range.
 
-- **Since** (required): The start date and time for the analysis period
-  - Example: `2026-02-01T00:00:00Z`
-- **Until** (required): The end date and time for the analysis period
-  - Example: `2026-02-28T23:59:59Z`
-- **Timezone** (optional): The timezone to use for displaying dates and times in outputs. If not set, times remain in UTC.
-  - Example: `Africa/Nairobi (UTC+03:00)`
+- **Since**: `2026-07-01T00:00:00`
+- **Until**: `2026-07-31T23:59:59`
+- **Timezone**: `Africa/Nairobi (UTC+03:00)`
+  - Note: All report dates and times are shown in the timezone you select here
 
-#### 4. Persist Patrol Trajectories
-Choose the output format(s) for your processed patrol trajectory data.
+#### 4. Report Scope
+Choose which areas the report covers.
 
-- **Filetypes** (optional): Select one or more output formats
-  - Default: `["parquet"]`
-  - Options: `csv`, `parquet`
+- **Report Scope** (required): One of:
+  - `"Mara Triangle & Reserve"` (default) — both areas, each as its own subsection in every chapter
+  - `"Mara Triangle only"`
+  - `"Reserve only"`
 
-#### 5. Create Patrol Report
-Configure the Word report output.
+#### 5. Persist Patrol Trajectories
+Choose the file format(s) for the trajectory data export.
 
-- **Template Path** (required): Path or URL to the Word template (.docx) file with Jinja2 placeholders
-  - Example: `/Users/you/mt-patrols/resources/templates/mt_patrols_report_template.docx`
-  - Note: Supports both local file paths and remote URLs (http://, https://)
+- **Filetypes**: `parquet` (default) and/or `csv`
+  - **CSV**: Quick review in spreadsheets
+  - **Parquet**: Efficient for large datasets, programmatic analysis
+
+#### 6. Create Patrol Report
+Controls the final Word report.
+
+- **Template Path**: The report template to use
+  - Default: the template bundled with this workflow (leave unchanged unless you have a custom template)
+- **Skip** (advanced): Skip report generation entirely
+- **Missing Text** (advanced): Text inserted where a report item has no data
 
 ### Advanced Configuration
 
 These optional settings provide additional control over your workflow:
 
-#### Trajectory Segment Filter
-Filter track data by setting limits on segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and focusing on meaningful movement patterns.
+#### Patrol Type Lists (Report Scope)
+The workflow decides whether a patrol belongs to the Mara Triangle or the Reserve by its patrol type. The two lists are prefilled with the standard **mmnr** patrol type values.
 
-- **Minimum Segment Length (Meters)**: Default `0.001`
-- **Maximum Segment Length (Meters)**: Default `10000`
-- **Minimum Segment Duration (Seconds)**: Default `1`
-- **Maximum Segment Duration (Seconds)**: Default `172800` (48 hours)
-- **Minimum Segment Speed (km/h)**: Default `0.01`
-- **Maximum Segment Speed (km/h)**: Default `500`
+- **Mara Triangle Patrol Types**: Patrol type values counted as Mara Triangle
+  - Default includes: `rhino_monitoring_patrol`, `general_law_enforcement`, `anti_harass_patrol`, `community_outreach`, `k9_deploy`, `rabies_vaccine`, and their vehicle variants
+- **Reserve Patrol Types**: Patrol type values counted as Reserve
+  - Default includes: `rhino_monitor_patrol_reserve`, `rhino_monitoring_veh_patrol_reserve`, `law_enforcement_veh_reserve`, `anti_harass_veh_reserve`
+  - Note: Enter the patrol type *value* (not the display name), one per field. Patrols whose type is in neither list are excluded from the report
 
-#### Base Maps
-Select tile layers to use as base layers in map outputs. The first layer in the list will be the bottommost layer displayed.
+#### Trajectory Segment Filter (Process Patrol Observations)
+Removes implausible trajectory segments before distance and duration are calculated.
 
-- **Preset options**: Open Street Map, Roadmap, Satellite, Terrain, LandDx, USGS Hillshade
-- **Custom Layer (Advanced)**: Provide the URL of a publicly accessible tiled raster service
-- Default: Terrain (World Topo Map)
+- **Trajectory Segment Filter**: Bounds on segment length, duration, and speed
+  - Default: `0.001–10000 m`, `1 s – 48 h`, `0.01–500 km/h`
+
+#### Base Maps (Generate Maps)
+The background map used behind patrol trajectories.
+
+- **Base Maps**: Default is the ArcGIS World Topo basemap; you can add other tile URLs
 
 ---
 
@@ -118,18 +136,18 @@ Select tile layers to use as base layers in map outputs. The first layer in the 
 Once you've configured all the settings:
 
 1. **Review your configuration**
-   - Double-check your data source, time range, and template path
+   - Double-check your time range, data source, and report scope
 
 2. **Save and run**
-   - Click "Submit" and the workflow will show up in the "My Workflows" table
-   - Click "Run" and the workflow will begin processing
+   - Click the "Submit" and the workflow will show up in "My Workflows" table button in Ecoscope Desktop
+   - Click on "Run" and the workflow will begin processing
 
 3. **Monitor progress and wait for completion**
    - You'll see status updates as the workflow runs
    - Processing time depends on:
      - The size of your date range
-     - Number of patrols in SMART for the selected period
-     - Number of stations and patrol observations
+     - Number of patrols and observations in the period
+     - Number of patrol areas in scope
    - The workflow completes with status "Success" or "Failed"
 
 ---
@@ -140,56 +158,47 @@ After the workflow completes successfully, you'll find your outputs in the desig
 
 ### Data Outputs
 
-#### Patrol Trajectory Data
-Processed patrol trajectories saved in the format(s) you selected.
+#### Patrol Trajectories (one file per patrol area)
 
-- **File formats**: CSV and/or Parquet (based on your selection)
-- **Opens in**: Microsoft Excel, Google Sheets (CSV), Python/R (Parquet)
-- **Contents**: Each row represents a trajectory segment between two consecutive patrol relocations
-  - `segment_start`: Start time of the segment
-  - `timespan_seconds`: Duration of the segment in seconds
-  - `speed_kmhr`: Speed during the segment in km/h
-  - `dist_meters`: Distance of the segment in meters
-  - `station`: The station the patrol belongs to
-  - `patrol_mandate`: The mandate type of the patrol
-  - `patrol_transport`: The transport mode used
-  - `patrol_id`: Unique identifier for the patrol
-  - `patrol_leader_name`: Name of the patrol leader
+- **File formats**: Parquet and/or CSV (based on your selection)
+- **Opens in**: Python/R (Parquet), Microsoft Excel or Google Sheets (CSV)
+- **Contents**: One row per trajectory segment with patrol attributes joined on
+  - `patrol_id`: The EarthRanger patrol the segment belongs to
+  - `patrol_area`: `Mara Triangle` or `Reserve`
+  - `team_name`, `ranger_name`, `patrol_mandate`, `patrol_transport`: From the patrol's **patrol_info** event (or `Unknown` if the patrol has none)
+  - `dist_meters`, `timespan_seconds`, `speed_kmhr`, `segment_start`, `segment_end`: Movement metrics
 
-#### Summary Tables (CSV)
-Three summary tables are exported:
+#### Summary Tables (CSV, one per patrol area)
 
-- **Transport Summary**: Patrol count, total distance (km), and total duration (hours) grouped by transport type
-- **Mandate Summary**: Patrol count, total distance (km), and total duration (hours) grouped by mandate type
-- **Ranger Summary**: Patrol count, total distance (km), and total duration (hours) per ranger leader, split by station
+- **Transport summary** (`transport_summary_*.csv`): Distance and duration totals by transport type
+- **Mandate summary** (`mandate_summary_*.csv`): Distance and duration totals by patrol mandate
+- **Team summary** (`team_summary_*.csv`): Distance and duration totals by team
+- **Ranger summary** (`ranger_summary_*.csv`, one per area × team): Distance and duration totals per ranger
 
 ### Visual Outputs
 
-#### Patrol Trajectory Maps
-- **Format**: Interactive HTML maps (one per patrol mandate group)
+This is a report-driven workflow — the dashboard is intentionally empty. Maps and charts are produced as standalone files and embedded in the Word report:
+
+#### Patrol Trajectory Maps (one per patrol area × mandate)
+- **Format**: Interactive HTML map
 - **Features**:
-  - Polyline layers showing patrol paths, color-coded by station
-  - Hover tooltips showing Start Time, Duration (s), and Speed (kph) for each segment
-  - Configurable base map layer (default: Terrain)
-  - North arrow and legend
+  - Patrol trajectories drawn over the basemap, color-coded by team with a team legend (bottom-right)
+  - North arrow (top-left)
+  - Interactive hover: Team, Ranger, Start Time, Duration, and Speed for each segment
 
-#### Station Bar Chart
-- **Format**: Interactive bar chart
+#### Team Activity Bar Charts (one per patrol area)
+- **Format**: Interactive HTML bar chart
 - **Features**:
-  - X-axis: Station name
-  - Bars: Total Distance (km) in green, Total Duration (hours) in blue
-  - Hover: Shows exact values for each station
+  - X-axis: Team
+  - Y-axis: Total distance (km) and total duration (hours), as paired bars
 
-### Report Output
+#### Word Report (`mt_patrols_report_*.docx`)
 
-#### Word Report (.docx)
-A formatted Word document containing:
-- Report date range
-- Patrol trajectory maps (as images)
-- Station bar chart (as image)
-- Transport summary table
-- Mandate summary table
-- Ranger summary tables
+The report has three chapters, each with one subsection per patrol area in scope:
+
+1. **Trajectory Maps** — one map per mandate in each area
+2. **Patrol Summary** — transport, mandate, and team totals tables plus the team bar chart for each area
+3. **Ranger Summary** — one ranger totals table per team in each area
 
 ---
 
@@ -197,89 +206,108 @@ A formatted Word document containing:
 
 Here are some typical scenarios and how to configure the workflow for each:
 
-### Example 1: Monthly Patrol Summary
-**Goal**: Generate a complete patrol report for February 2026.
+### Example 1: Monthly patrol report for both areas
+**Goal**: The standard monthly report covering the Mara Triangle and the Reserve
 
 **Configuration**:
-- **Workflow Name**: `"MT Patrols"`
-- **Workflow Description**: `"SMART patrol trajectories workflow"`
-- **Data Source**: `"mara_triangle"`
 - **Time Range**:
-  - Since: `2026-02-01T00:00:00Z`
-  - Until: `2026-02-28T23:59:59Z`
-- **Template Path**: `/path/to/mt_patrols_report_template.docx`
-- **Filetypes**: `["parquet"]`
+  - Since: `2026-07-01T00:00:00`
+  - Until: `2026-07-31T23:59:59`
+  - Timezone: `Africa/Nairobi (UTC+03:00)`
+- **Data Source**: `"mmnr"`
+- **Report Scope**: `"Mara Triangle & Reserve"`
 
 **Result**:
-- Patrol trajectory maps grouped by mandate
-- Summary tables for transport types, mandates, and rangers
-- Bar chart comparing distance and duration across stations
-- A Word report combining all outputs
+- A Word report with Mara Triangle and Reserve subsections in every chapter
+- Trajectory parquet files, summary CSVs, maps, and bar charts for both areas
 
 ---
 
+### Example 2: Mara Triangle only
+**Goal**: A report restricted to Mara Triangle patrol activity
+
+**Configuration**:
+- **Time Range**: as above
+- **Data Source**: `"mmnr"`
+- **Report Scope**: `"Mara Triangle only"`
+
+**Result**:
+- Only patrols whose type is in the **Mara Triangle Patrol Types** list are fetched and reported
+- Each chapter contains a single Mara Triangle subsection
+
+---
+
+### Example 3: Focus on law-enforcement patrols
+**Goal**: Report only law-enforcement activity in both areas
+
+**Configuration**:
+- **Report Scope**: `"Mara Triangle & Reserve"`
+- **Mara Triangle Patrol Types** (advanced): `general_law_enforcement`, `law_enforcement_vehicle`
+- **Reserve Patrol Types** (advanced): `law_enforcement_veh_reserve`
+
+**Result**:
+- Only the listed patrol types are included; maps, summaries, and ranger tables reflect just those patrols
+
+---
+
+### Example 4: Custom report template
+**Goal**: Use your organization's own report design
+
+**Configuration**:
+- **Create Patrol Report → Template Path**: URL or path to your custom `.docx` template
+- All other settings as in Example 1
+
+**Result**:
+- The same data rendered into your custom template layout
+
+---
 
 ## Troubleshooting
 
 ### Common Issues and Solutions
 
-#### Workflow Fails to Start
-**Problem**: The workflow does not begin processing after clicking "Run".
+#### Workflow fails to start
+**Problem**: The workflow fails immediately with a connection or authentication error
 
 **Solutions**:
-- Verify that Ecoscope Desktop is running and up to date
-- Check that all required fields are filled in (Workflow Name, Data Source, Time Range, Template Path)
-- Restart Ecoscope Desktop and try again
+- Verify your EarthRanger data source is configured correctly in Ecoscope Desktop
+- Check that your EarthRanger username and password are still valid
+- Confirm the data source name matches your configured connection (e.g., `"mmnr"`)
 
-#### Authentication or Connection Error
-**Problem**: The workflow fails when trying to connect to SMART.
-
-**Solutions**:
-- Verify your SMART data source is correctly configured in Ecoscope Desktop
-- Check that the data source name matches exactly (e.g., `"mara_triangle"`)
-- Ensure your SMART server credentials are valid and not expired
-- Confirm your network connection allows access to the SMART server
-
-#### No Data in Results
-**Problem**: The workflow completes but outputs are empty or missing.
+#### No patrols returned
+**Problem**: The workflow completes but the report is mostly empty
 
 **Solutions**:
-- Confirm that your time range covers the period when patrol data was collected
-- Check that patrols exist in SMART for the selected date range
-- Verify that your SMART user account has permissions to access patrol data
+- Widen your time range — only patrols overlapping the range are included
+- Check that patrols in EarthRanger have status "done" for the period
+- Verify the patrol types used in your EarthRanger site appear in the **Mara Triangle Patrol Types** or **Reserve Patrol Types** lists — patrols with other types are excluded
 
-#### Maps Are Empty or Missing
-**Problem**: The patrol trajectory maps show no data or are not generated.
-
-**Solutions**:
-- Check that patrol observations have valid GPS coordinates (not at 0,0 or 180,90)
-- The workflow automatically filters out known invalid coordinates (0,0), (1,1), and (180,90)
-- Verify that trajectory segments pass the segment filter criteria (length, duration, speed)
-- Try relaxing the trajectory segment filter settings under Advanced Configuration
-
-#### Workflow Runs Very Slowly
-**Problem**: The workflow takes much longer than expected.
+#### Patrol attributes show "Unknown"
+**Problem**: Teams, rangers, mandates, or transport appear as `Unknown` in the report
 
 **Solutions**:
-- Large date ranges with many patrols will take longer to process
-- The first run after installation may be slower as the environment initializes ("warm-up")
-- Try running with a smaller date range first to verify the configuration works
-- Consider splitting very large datasets into smaller time periods
+- The affected patrols have no **patrol_info** event attached in EarthRanger — add one to each patrol
+- Check that the **patrol_info** event's details (ranger, team, mandate, transport) are filled in
+- Note: This is expected behavior, not an error — patrols are never dropped for missing attributes
 
-#### Word Report Generation Fails
-**Problem**: The workflow fails at the "Create Patrol Report" step.
-
-**Solutions**:
-- Verify the template path points to a valid `.docx` file
-- If using a URL, ensure it is accessible and points to a valid Word document
-- Check that the template file is not open in another application
-- Try using the default template provided in `resources/templates/`
-
-#### Unexpected Trajectory Segments
-**Problem**: The maps show unrealistic patrol routes (very long or fast segments).
+#### An area subsection is missing from the report
+**Problem**: The report only shows one of the two areas
 
 **Solutions**:
-- Adjust the Trajectory Segment Filter under Advanced Configuration
-- Lower the **Maximum Segment Speed** to filter out GPS jumps (e.g., set to `80` km/h for foot/vehicle patrols)
-- Lower the **Maximum Segment Length** to remove unrealistically long segments
-- Lower the **Maximum Segment Duration** to remove segments with large time gaps
+- Check the **Report Scope** setting — `"Mara Triangle only"` and `"Reserve only"` intentionally omit the other area
+- If scope is `"Mara Triangle & Reserve"`, confirm the missing area actually had patrols (of the configured types) during the time range
+
+#### Workflow runs very slowly
+**Problem**: The workflow takes a long time to complete
+
+**Solutions**:
+- Use a shorter time range — patrol observation volume grows quickly with the period length
+- The first run after installation is slower while the workflow environment warms up; later runs are faster
+
+#### Report template errors
+**Problem**: The workflow fails at the report generation step
+
+**Solutions**:
+- If you supplied a custom template, verify it is a valid `.docx` file and its placeholders match the workflow's report items (`patrol_maps`, `transport_summary`, `mandate_summary`, `team_summary`, `team_bar_chart`, `ranger_summary`, `report_date`)
+- If using a URL, confirm the file is reachable from your machine
+- Revert to the default template to confirm the rest of the workflow is healthy
