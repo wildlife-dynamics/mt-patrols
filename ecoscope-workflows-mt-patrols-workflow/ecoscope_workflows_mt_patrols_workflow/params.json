@@ -368,20 +368,6 @@
           "title": "Template Path",
           "type": "string",
           "description": "Path or URL to the Word template (.docx) file with Jinja2 placeholders. Supports local paths and remote URLs (http://, https://)."
-        },
-        "skip": {
-          "default": false,
-          "title": "Skip",
-          "type": "boolean",
-          "description": "Skip report generation entirely when True.",
-          "ecoscope:advanced": true
-        },
-        "missing_text": {
-          "default": null,
-          "title": "Missing Text",
-          "type": "string",
-          "description": "Text substituted for direct text/image items whose upstream task was skipped (e.g. '(No data)'). When None, their placeholders render blank.",
-          "ecoscope:advanced": true
         }
       },
       "required": [
@@ -494,13 +480,6 @@
         "since",
         "until",
         "timezone"
-      ]
-    },
-    "create_patrol_report": {
-      "ui:order": [
-        "template_path",
-        "skip",
-        "missing_text"
       ]
     },
     "ui:order": [

@@ -1692,6 +1692,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             groupers=report_groupers,
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filename_prefix="mt_patrols_report",
+            skip=False,
+            missing_text=None,
             **(params.get("create_patrol_report") or {}),
         )
         .call()
