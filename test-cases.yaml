@@ -47,9 +47,7 @@ base:
       vars:
         - "rhino_monitor_patrol_reserve"
         - "rhino_monitoring_veh_patrol_reserve"
-        - "law_enforcement_reserve"
         - "law_enforcement_veh_reserve"
-        - "anti_harass_reserve"
         - "anti_harass_veh_reserve"
     persist_patrol_traj:
       filetypes: ["parquet"]
@@ -98,9 +96,7 @@ live:
       vars:
         - "rhino_monitor_patrol_reserve"
         - "rhino_monitoring_veh_patrol_reserve"
-        - "law_enforcement_reserve"
         - "law_enforcement_veh_reserve"
-        - "anti_harass_reserve"
         - "anti_harass_veh_reserve"
     persist_patrol_traj:
       filetypes: ["parquet"]
